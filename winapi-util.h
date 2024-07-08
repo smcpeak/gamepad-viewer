@@ -18,4 +18,15 @@ std::wstring getErrorMessage(DWORD errorCode);
 std::wstring getLastErrorMessage();
 
 
+// Given that `functionName` has failed, print an error message based on
+// `GetLastError()` to stderr and exit(2).
+void winapiDie(wchar_t const *functionName);
+
+
+// Given that `functionName` has failed, but that function does not set
+// `GetLastError()` ("NLE" stands for "No Last Error"), print an error
+// message to stderr and exit(2).
+void winapiDieNLE(wchar_t const *functionName);
+
+
 #endif // WINAPI_UTIL_H

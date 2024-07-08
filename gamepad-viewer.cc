@@ -18,10 +18,15 @@ LRESULT CALLBACK mainWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
     case WM_PAINT: {
       PAINTSTRUCT ps;
       HDC hdc = BeginPaint(hwnd, &ps);
+      if (!hdc) {
+        winapiDieNLE(L"BeginPaint");
+      }
 
       // All painting occurs here, between BeginPaint and EndPaint.
 
-      FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
+      if (!FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1))) {
+        winapiDieNLE(L"FillRect");
+      }
 
       EndPaint(hwnd, &ps);
       return 0;
@@ -44,7 +49,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
   wc.lpszClassName = CLASS_NAME;
   wc.hCursor       = LoadCursor(nullptr, IDC_ARROW);
 
-  RegisterClass(&wc);
+  if (RegisterClass(&wc) == 0) {
+    winapiDie(L"RegisterClass");
+  }
 
   // Create the window.
 
@@ -64,7 +71,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
   );
 
   if (hwnd == NULL) {
-    std::wcout << L"CreateWindowEx: " << getLastErrorMessage() << L"\n";
+    winapiDie(L"CreateWindowEx");
     return 2;
   }
 

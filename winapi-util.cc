@@ -5,6 +5,8 @@
 
 #include <windows.h>                   // winapi
 
+#include <cstdlib>                     // std::exit
+#include <iostream>                    // std::wcerr
 #include <string>                      // std::wstring
 
 
@@ -13,17 +15,20 @@ std::wstring getErrorMessage(DWORD errorCode)
 {
   // Get the string for `errorCode`.
   LPVOID lpMsgBuf;
-  FormatMessage(
-    FORMAT_MESSAGE_ALLOCATE_BUFFER |
-    FORMAT_MESSAGE_FROM_SYSTEM |
-    FORMAT_MESSAGE_IGNORE_INSERTS,
-    NULL,
-    errorCode,
-    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
-    (LPTSTR) &lpMsgBuf,
-    0,
-    NULL
-  );
+  if (!FormatMessage(
+         FORMAT_MESSAGE_ALLOCATE_BUFFER |
+         FORMAT_MESSAGE_FROM_SYSTEM |
+         FORMAT_MESSAGE_IGNORE_INSERTS,
+         NULL,
+         errorCode,
+         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
+         (LPTSTR) &lpMsgBuf,
+         0,
+         NULL)) {
+    std::wcerr << L"FormatMessage failed with code "
+               << GetLastError() << L"\n";
+    std::exit(4);
+  }
 
   // Now the SDK says: "Process any inserts in lpMsgBuf."
   //
@@ -34,7 +39,9 @@ std::wstring getErrorMessage(DWORD errorCode)
   std::wstring ret((wchar_t*)lpMsgBuf);
 
   // Free the buffer.
-  LocalFree(lpMsgBuf);
+  if (LocalFree(lpMsgBuf) != NULL) {
+    winapiDie(L"LocalFree");
+  }
 
   // At least some error messages end with a newline, but I do not want
   // that.
@@ -49,6 +56,21 @@ std::wstring getErrorMessage(DWORD errorCode)
 std::wstring getLastErrorMessage()
 {
   return getErrorMessage(GetLastError());
+}
+
+
+void winapiDie(wchar_t const *functionName)
+{
+  DWORD code = GetLastError();
+  std::wcerr << functionName << L": " << getErrorMessage(code) << L"\n";
+  std::exit(2);
+}
+
+
+void winapiDieNLE(wchar_t const *functionName)
+{
+  std::wcerr << functionName << L" failed.\n";
+  std::exit(2);
 }
 
 
