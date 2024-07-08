@@ -1,11 +1,11 @@
 // gamepad-viewer.cc
 // Program to show the current gamepad input state.
 
-#ifndef UNICODE
-#define UNICODE
-#endif
+#include "winapi-util.h"               // getLastErrorMessage
 
 #include <windows.h>                   // Windows API
+
+#include <iostream>                    // std::wcout
 
 
 // Forward in this file.
@@ -44,7 +44,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
   );
 
   if (hwnd == NULL) {
-    return 0;
+    std::wcout << L"CreateWindowEx: " << getLastErrorMessage() << L"\n";
+    return 2;
   }
 
   ShowWindow(hwnd, nCmdShow);
@@ -59,6 +60,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
   return 0;
 }
+
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {

@@ -5,7 +5,11 @@ all: gamepad-viewer.exe
 
 CXX := g++
 
-CXXFLAGS := -g -Wall -Werror
+CXXFLAGS :=
+CXXFLAGS += -g
+CXXFLAGS += -Wall
+CXXFLAGS += -Werror
+CXXFLAGS += -DUNICODE
 
 LDFLAGS := -g -Wall -municode
 
@@ -14,6 +18,7 @@ LIBS :=
 
 OBJS :=
 OBJS += gamepad-viewer.o
+OBJS += winapi-util.o
 
 
 %.o: %.cc
