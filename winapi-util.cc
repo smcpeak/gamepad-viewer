@@ -74,4 +74,39 @@ void winapiDieNLE(wchar_t const *functionName)
 }
 
 
+// ----------------------- CreateWindowExWArgs -------------------------
+CreateWindowExWArgs::CreateWindowExWArgs()
+  : m_dwExStyle(0),
+    m_lpClassName(nullptr),
+    m_lpWindowName(nullptr),
+    m_dwStyle(0),
+    m_x(CW_USEDEFAULT),
+    m_y(CW_USEDEFAULT),
+    m_nWidth(CW_USEDEFAULT),
+    m_nHeight(CW_USEDEFAULT),
+    m_hwndParent(nullptr),
+    m_hMenu(nullptr),
+    m_hInstance(GetModuleHandle(nullptr)),
+    m_lpParam(nullptr)
+{}
+
+
+HWND CreateWindowExWArgs::createWindow() const
+{
+  return CreateWindowExW(
+    m_dwExStyle,
+    m_lpClassName,
+    m_lpWindowName,
+    m_dwStyle,
+    m_x,
+    m_y,
+    m_nWidth,
+    m_nHeight,
+    m_hwndParent,
+    m_hMenu,
+    m_hInstance,
+    m_lpParam);
+}
+
+
 // EOF

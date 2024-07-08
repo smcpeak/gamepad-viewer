@@ -29,4 +29,47 @@ void winapiDie(wchar_t const *functionName);
 void winapiDieNLE(wchar_t const *functionName);
 
 
+// Structure to hold the arguments for a `CreateWindowExW` call.
+class CreateWindowExWArgs {
+public:      // data
+  // Extended window style.  Initially 0.
+  DWORD     m_dwExStyle;
+
+  // Name of the window class.  Initially null.
+  LPCWSTR   m_lpClassName;
+
+  // Window text, used as the title for top-level window, text for
+  // buttons, etc.  Initially null.
+  LPCWSTR   m_lpWindowName;
+
+  // Window style.  Initially 0.
+  DWORD     m_dwStyle;
+
+  // Initial window position and size.  Initially `CW_USEDEFAULT`.
+  int       m_x;
+  int       m_y;
+  int       m_nWidth;
+  int       m_nHeight;
+
+  // Parent window.  Initially null.
+  HWND      m_hwndParent;
+
+  // Menu.  Initially null.
+  HMENU     m_hMenu;
+
+  // Instance handle.  Initially `GetModuleHandle(nullptr)`.
+  HINSTANCE m_hInstance;
+
+  // User data.  Initially null.
+  LPVOID    m_lpParam;
+
+public:      // methods
+  CreateWindowExWArgs();
+
+  // Pass the arguments to `CreateWindowExW`, returning whatever it
+  // returns.
+  HWND createWindow() const;
+};
+
+
 #endif // WINAPI_UTIL_H

@@ -1,7 +1,7 @@
 // gamepad-viewer.cc
 // Program to show the current gamepad input state.
 
-#include "winapi-util.h"               // getLastErrorMessage
+#include "winapi-util.h"               // getLastErrorMessage, CreateWindowExWArgs
 
 #include <windows.h>                   // Windows API
 
@@ -54,24 +54,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
   }
 
   // Create the window.
+  CreateWindowExWArgs cw;
+  cw.m_lpClassName = CLASS_NAME;
+  cw.m_lpWindowName = L"Gamepad Viewer";
+  cw.m_dwStyle = WS_OVERLAPPEDWINDOW;
 
-  HWND hwnd = CreateWindowEx(
-    0,                              // Optional window styles.
-    CLASS_NAME,                     // Window class.
-    L"Gamepad Viewer",              // Window text (title).
-    WS_OVERLAPPEDWINDOW,            // Window style.
-
-    // Size and position
-    CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-
-    NULL,       // Parent window
-    NULL,       // Menu
-    hInstance,  // Instance handle
-    NULL        // Additional application data
-  );
-
+  HWND hwnd = cw.createWindow();
   if (hwnd == NULL) {
-    winapiDie(L"CreateWindowEx");
+    winapiDie(L"CreateWindowExW");
     return 2;
   }
 
