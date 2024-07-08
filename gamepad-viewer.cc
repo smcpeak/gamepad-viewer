@@ -8,18 +8,38 @@
 #include <iostream>                    // std::wcout
 
 
-// Forward in this file.
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK mainWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  switch (uMsg) {
+    case WM_DESTROY:
+      PostQuitMessage(0);
+      return 0;
+
+    case WM_PAINT: {
+      PAINTSTRUCT ps;
+      HDC hdc = BeginPaint(hwnd, &ps);
+
+      // All painting occurs here, between BeginPaint and EndPaint.
+
+      FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
+
+      EndPaint(hwnd, &ps);
+      return 0;
+    }
+  }
+
+  return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
 
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
   // Register the window class.
-  const wchar_t CLASS_NAME[]  = L"Sample Window Class";
+  const wchar_t CLASS_NAME[]  = L"Gamepad Viewer";
 
   WNDCLASS wc = { };
 
-  wc.lpfnWndProc   = WindowProc;
+  wc.lpfnWndProc   = mainWindowProc;
   wc.hInstance     = hInstance;
   wc.lpszClassName = CLASS_NAME;
   wc.hCursor       = LoadCursor(nullptr, IDC_ARROW);
@@ -30,9 +50,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
   HWND hwnd = CreateWindowEx(
     0,                              // Optional window styles.
-    CLASS_NAME,                     // Window class
-    L"Learn to Program Windows",    // Window text
-    WS_OVERLAPPEDWINDOW,            // Window style
+    CLASS_NAME,                     // Window class.
+    L"Gamepad Viewer",              // Window text (title).
+    WS_OVERLAPPEDWINDOW,            // Window style.
 
     // Size and position
     CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
@@ -59,30 +79,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
   }
 
   return 0;
-}
-
-
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-  switch (uMsg) {
-    case WM_DESTROY:
-      PostQuitMessage(0);
-      return 0;
-
-    case WM_PAINT: {
-      PAINTSTRUCT ps;
-      HDC hdc = BeginPaint(hwnd, &ps);
-
-      // All painting occurs here, between BeginPaint and EndPaint.
-
-      FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
-
-      EndPaint(hwnd, &ps);
-      return 0;
-    }
-  }
-
-  return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
 
