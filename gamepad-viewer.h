@@ -47,6 +47,9 @@ public:      // data
   // Current controller input.
   XINPUT_STATE m_controllerState;
 
+  // True if the last poll attempt succeeded.
+  bool m_hasControllerState;
+
 public:      // methods
   GVMainWindow();
 
@@ -55,6 +58,9 @@ public:      // methods
 
   // Destroy the device-independent resources.
   void destroyDeviceIndependentResources();
+
+  // Set `m_controllerState` by polling the controller.
+  void pollControllerState();
 
   // Return the client rectangle size as a D2D1_SIZE_U.
   D2D1_SIZE_U getClientRectSizeU() const;
@@ -71,6 +77,9 @@ public:      // methods
 
   // Handle `WM_PAINT`.
   void onPaint();
+
+  // Draw the controller state on `m_renderTarget`.
+  void drawControllerState();
 
   // Cause a repaint event that will redraw the entire window.
   void invalidateAllPixels();

@@ -9,12 +9,14 @@
 #include <dwrite.h>                    // DirectWrite
 #include <windows.h>                   // Windows API
 #include <windowsx.h>                  // GET_X_PARAM, GET_Y_LPARAM
+#include <xinput.h>                    // XInputGetState
 
 #include <algorithm>                   // std::min
 #include <cassert>                     // assert
 #include <cstdlib>                     // std::{getenv, atoi}
 #include <cstring>                     // std::memset
 #include <iostream>                    // std::{wcerr, flush}
+#include <sstream>                     // std::wostringstream
 
 
 // Level of diagnostics to print.
@@ -57,7 +59,8 @@ GVMainWindow::GVMainWindow()
     m_textBrush(nullptr),
     m_ellipse(),
     m_rotDegrees(0),
-    m_controllerState()
+    m_controllerState(),
+    m_hasControllerState(false)
 {
   // I'm not sure if the default ctor initializes this.
   std::memset(&m_controllerState, 0, sizeof(m_controllerState));
@@ -83,17 +86,19 @@ void GVMainWindow::createDeviceIndependentResources()
     DWRITE_FONT_WEIGHT_NORMAL,         // fontWeight
     DWRITE_FONT_STYLE_NORMAL,          // fontStyle
     DWRITE_FONT_STRETCH_NORMAL,        // fontStretch
-    50.0f,                             // fontSize
+    20.0f,                             // fontSize
     L"",                               // localeName
     &m_textFormat                      // textFormat
   );
   assert(m_textFormat);
 
-  // Center text horizontally and vertically.
-  CALL_HR_WINAPI(m_textFormat->SetTextAlignment,
-    DWRITE_TEXT_ALIGNMENT_CENTER);
-  CALL_HR_WINAPI(m_textFormat->SetParagraphAlignment,
-    DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+  if (false) {
+    // Center text horizontally and vertically.
+    CALL_HR_WINAPI(m_textFormat->SetTextAlignment,
+      DWRITE_TEXT_ALIGNMENT_CENTER);
+    CALL_HR_WINAPI(m_textFormat->SetParagraphAlignment,
+      DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+  }
 }
 
 
@@ -102,6 +107,14 @@ void GVMainWindow::destroyDeviceIndependentResources()
   safeRelease(m_d2dFactory);
   safeRelease(m_writeFactory);
   safeRelease(m_textFormat);
+}
+
+
+void GVMainWindow::pollControllerState()
+{
+  memset(&m_controllerState, 0, sizeof(m_controllerState));
+  DWORD res = XInputGetState(0 /*index*/, &m_controllerState);
+  m_hasControllerState = (res == ERROR_SUCCESS);
 }
 
 
@@ -192,18 +205,10 @@ void GVMainWindow::onPaint()
 
   m_renderTarget->FillEllipse(m_ellipse, m_yellowBrush);
 
-  // Draw some text in the ellipse.
-  {
-    static wchar_t const helloWorld[] = L"Hello, World!";
-    D2D1_SIZE_F renderTargetSize = m_renderTarget->GetSize();
+  // For now, poll every time we draw.
+  pollControllerState();
 
-    m_renderTarget->DrawText(
-      helloWorld,
-      ARRAYSIZE(helloWorld) - 1,
-      m_textFormat,
-      D2D1::RectF(0, 0, renderTargetSize.width, renderTargetSize.height),
-      m_textBrush);
-  }
+  drawControllerState();
 
   HRESULT hr = m_renderTarget->EndDraw();
   if (hr == HRESULT(D2DERR_RECREATE_TARGET)) {
@@ -218,6 +223,35 @@ void GVMainWindow::onPaint()
   }
 
   EndPaint(m_hwnd, &ps);
+}
+
+
+void GVMainWindow::drawControllerState()
+{
+  std::wostringstream oss;
+
+  XINPUT_STATE const &i = m_controllerState;
+  XINPUT_GAMEPAD const &g = i.Gamepad;
+
+  oss << L"hasState: " << m_hasControllerState << L"\n";
+  oss << L"packet: " << i.dwPacketNumber << L"\n";
+  oss << L"buttons: " << std::hex << g.wButtons << std::dec << L"\n";
+  oss << L"leftTrigger: " << +g.bLeftTrigger << L"\n";
+  oss << L"rightTrigger: " << +g.bRightTrigger << L"\n";
+  oss << L"thumbLX: " << g.sThumbLX << L"\n";
+  oss << L"thumbLY: " << g.sThumbLY << L"\n";
+  oss << L"thumbRX: " << g.sThumbRX << L"\n";
+  oss << L"thumbRY: " << g.sThumbRY << L"\n";
+
+  D2D1_SIZE_F renderTargetSize = m_renderTarget->GetSize();
+
+  std::wstring s = oss.str();
+  m_renderTarget->DrawText(
+    s.data(),
+    s.size(),
+    m_textFormat,
+    D2D1::RectF(100, 100, renderTargetSize.width, renderTargetSize.height),
+    m_textBrush);
 }
 
 

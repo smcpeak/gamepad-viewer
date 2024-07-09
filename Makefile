@@ -28,6 +28,9 @@ LIBS += -ld2d1
 # DirectWrite.  For me the file is libdwrite.a next to libd2d1.a.
 LIBS += -ldwrite
 
+# XInput.
+LIBS += -lxinput
+
 
 OBJS :=
 OBJS += base-window.o
