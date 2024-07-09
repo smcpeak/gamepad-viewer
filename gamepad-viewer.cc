@@ -699,69 +699,15 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
       return 0;
 
     case WM_NCHITTEST: {
-      // Arrange to drag the window whenever the ellipse is clicked, and
-      // resize in the corner areas.
+      // Arrange to move the window whenever an opaque part of the
+      // client area is clicked and dragged.
       //
       // https://stackoverflow.com/a/7773941/2659307
       //
       LRESULT hit = DefWindowProc(m_hwnd, uMsg, wParam, lParam);
       if (hit == HTCLIENT) {
-        // Get client-relative click point.
-        POINT clientRelPt;
-        clientRelPt.x = GET_X_LPARAM(lParam);
-        clientRelPt.y = GET_Y_LPARAM(lParam);
-        if (!ScreenToClient(m_hwnd, &clientRelPt)) {
-          winapiDie(L"ScreenToClient");
-        }
-
-        // Adjust the point to be relative to the center of the ellipse.
-        D2D1_POINT_2F centerRelPt;
-        centerRelPt.x = clientRelPt.x - m_ellipse.point.x;
-        centerRelPt.y = clientRelPt.y - m_ellipse.point.y;
-
-        // Declare out here so I can print them later.
-        float scaledX = 0;
-        float scaledY = 0;
-
-        if (m_ellipse.radiusX > 0 && m_ellipse.radiusY > 0) {
-          // Normalize the coordinate as if on a unit circle.
-          scaledX = centerRelPt.x / m_ellipse.radiusX;
-          scaledY = centerRelPt.y / m_ellipse.radiusY;
-
-          if (scaledX*scaledX + scaledY*scaledY <= 0.5) {
-            // The point is near the center of that circle.
-            hit = HTCAPTION;           //  2
-          }
-          else {
-            if (scaledX < 0) {
-              if (scaledY < 0) {
-                hit = HTTOPLEFT;       // 13
-              }
-              else {
-                hit = HTBOTTOMLEFT;    // 16
-              }
-            }
-            else {
-              if (scaledY < 0) {
-                hit = HTTOPRIGHT;      // 14
-              }
-              else {
-                hit = HTBOTTOMRIGHT;   // 17
-              }
-            }
-          }
-        }
-
-        TRACE2(L"WM_NCHITTEST:"
-          TRVAL(clientRelPt.x) <<
-          TRVAL(clientRelPt.y) <<
-          TRVAL(centerRelPt.x) <<
-          TRVAL(centerRelPt.y) <<
-          TRVAL(scaledX) <<
-          TRVAL(scaledY) <<
-          TRVAL(hit));
+        hit = HTCAPTION;
       }
-
       return hit;
     }
 
