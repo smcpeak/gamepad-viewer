@@ -11,6 +11,9 @@ CXXFLAGS += -Wall
 CXXFLAGS += -Werror
 CXXFLAGS += -DUNICODE
 
+# Generate .d files.
+CXXFLAGS += -MMD
+
 LDFLAGS :=
 LDFLAGS += -g
 LDFLAGS += -Wall
@@ -32,6 +35,8 @@ OBJS += gamepad-viewer.o
 OBJS += winapi-util.o
 
 
+-include $(wildcard *.d)
+
 %.o: %.cc
 	$(CXX) -c -o $@ $(CXXFLAGS) $<
 
@@ -41,7 +46,7 @@ gamepad-viewer.exe: $(OBJS)
 
 .PHONY: clean
 clean:
-	$(RM) *.o *.exe
+	$(RM) *.o *.d *.exe
 
 
 # EOF
