@@ -7,37 +7,48 @@
 #include "base-window.h"               // BaseWindow
 
 #include <d2d1.h>                      // Direct2D
+#include <dwrite.h>                    // IDWriteFactory, IDWriteTextFormat
 #include <windows.h>                   // Windows API
+#include <xinput.h>                    // XINPUT_STATE
 
 
 // Main window of the gamepad viewer.
 class GVMainWindow : public BaseWindow {
 public:      // data
+  // ---------------- D2D device-independent resources -----------------
   // D2D factory used to create the render target.  This is, I think,
   // the root interface to D2D.
   ID2D1Factory *m_d2dFactory;
 
+  // DirectWrite factory, used to create `m_textFormat`.
+  IDWriteFactory *m_writeFactory;
+
+  // "Text format" object for ... what?
+  IDWriteTextFormat *m_textFormat;
+
+  // ----------------- D2D device-dependent resources ------------------
   // D2D render target associated with the main window.
   ID2D1HwndRenderTarget *m_renderTarget;
 
   // A solid yellow brush associated with `m_renderTarget` and used to
   // fill the ellipse.
-  ID2D1SolidColorBrush *m_brush;
+  ID2D1SolidColorBrush *m_yellowBrush;
 
+  // Brush for drawing text.
+  ID2D1SolidColorBrush *m_textBrush;
+
+  // ------------------------- Other app state -------------------------
   // Shape of ellipse to draw.
   D2D1_ELLIPSE m_ellipse;
 
   // Clockwise rotation to apply to the drawn ellipse, in degrees.
   int m_rotDegrees;
 
+  // Current controller input.
+  XINPUT_STATE m_controllerState;
+
 public:      // methods
-  GVMainWindow()
-    : m_d2dFactory(nullptr),
-      m_renderTarget(nullptr),
-      m_brush(nullptr),
-      m_ellipse(),
-      m_rotDegrees(0)
-  {}
+  GVMainWindow();
 
   // Return the client rectangle size as a D2D1_SIZE_U.
   D2D1_SIZE_U getClientRectSizeU() const;
@@ -63,6 +74,12 @@ public:      // methods
 
   // Handle `WM_KEYDOWN`.  Return true if handled.
   bool onKeyDown(WPARAM wParam, LPARAM lParam);
+
+  // Create the device-independent resources.
+  void createDeviceIndependentResources();
+
+  // Destroy the device-independent resources.
+  void destroyDeviceIndependentResources();
 
   // BaseWindow methods.
   virtual LRESULT handleMessage(

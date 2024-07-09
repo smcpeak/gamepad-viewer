@@ -6,12 +6,14 @@
 #include "winapi-util.h"               // getLastErrorMessage, CreateWindowExWArgs
 
 #include <d2d1.h>                      // Direct2D
+#include <dwrite.h>                    // DirectWrite
 #include <windows.h>                   // Windows API
 #include <windowsx.h>                  // GET_X_PARAM, GET_Y_LPARAM
 
 #include <algorithm>                   // std::min
 #include <cassert>                     // assert
 #include <cstdlib>                     // std::{getenv, atoi}
+#include <cstring>                     // std::memset
 #include <iostream>                    // std::{wcerr, flush}
 
 
@@ -44,6 +46,22 @@ bool g_useTransparency = true;
 
 // Add the value of `expr` to a chain of outputs using `<<`.
 #define TRVAL(expr) L" " WIDE_STRINGIZE(expr) L"=" << (expr)
+
+
+GVMainWindow::GVMainWindow()
+  : m_d2dFactory(nullptr),
+    m_writeFactory(nullptr),
+    m_textFormat(nullptr),
+    m_renderTarget(nullptr),
+    m_yellowBrush(nullptr),
+    m_textBrush(nullptr),
+    m_ellipse(),
+    m_rotDegrees(0),
+    m_controllerState()
+{
+  // I'm not sure if the default ctor initializes this.
+  std::memset(&m_controllerState, 0, sizeof(m_controllerState));
+}
 
 
 D2D1_SIZE_U GVMainWindow::getClientRectSizeU() const
@@ -89,8 +107,13 @@ void GVMainWindow::createGraphicsResources()
     // Create a yellow brush used to fill the ellipse.
     D2D1_COLOR_F const color = D2D1::ColorF(1.0f, 1.0f, 0.0f);
     CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
-      color, &m_brush);
-    assert(m_brush);
+      color, &m_yellowBrush);
+    assert(m_yellowBrush);
+
+    CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
+      D2D1::ColorF(D2D1::ColorF::Blue),
+      &m_textBrush);
+    assert(m_textBrush);
 
     calculateLayout();
   }
@@ -100,7 +123,8 @@ void GVMainWindow::createGraphicsResources()
 void GVMainWindow::discardGraphicsResources()
 {
   safeRelease(m_renderTarget);
-  safeRelease(m_brush);
+  safeRelease(m_yellowBrush);
+  safeRelease(m_textBrush);
 }
 
 
@@ -125,7 +149,20 @@ void GVMainWindow::onPaint()
   m_renderTarget->SetTransform(
     D2D1::Matrix3x2F::Rotation(m_rotDegrees, m_ellipse.point));
 
-  m_renderTarget->FillEllipse(m_ellipse, m_brush);
+  m_renderTarget->FillEllipse(m_ellipse, m_yellowBrush);
+
+  // Draw some text in the ellipse.
+  {
+    static wchar_t const helloWorld[] = L"Hello, World!";
+    D2D1_SIZE_F renderTargetSize = m_renderTarget->GetSize();
+
+    m_renderTarget->DrawText(
+      helloWorld,
+      ARRAYSIZE(helloWorld) - 1,
+      m_textFormat,
+      D2D1::RectF(0, 0, renderTargetSize.width, renderTargetSize.height),
+      m_textBrush);
+  }
 
   HRESULT hr = m_renderTarget->EndDraw();
   if (hr == HRESULT(D2DERR_RECREATE_TARGET)) {
@@ -187,15 +224,52 @@ bool GVMainWindow::onKeyDown(WPARAM wParam, LPARAM lParam)
 }
 
 
+void GVMainWindow::createDeviceIndependentResources()
+{
+  CALL_HR_WINAPI(D2D1CreateFactory,
+    D2D1_FACTORY_TYPE_SINGLE_THREADED,
+    &m_d2dFactory);
+  assert(m_d2dFactory);
+
+  CALL_HR_WINAPI(DWriteCreateFactory,
+    DWRITE_FACTORY_TYPE_SHARED,
+    __uuidof(m_writeFactory),
+    reinterpret_cast<IUnknown **>(&m_writeFactory));
+  assert(m_writeFactory);
+
+  CALL_HR_WINAPI(m_writeFactory->CreateTextFormat,
+    L"Verdana",                        // fontFamilyName
+    nullptr,                           // fontCollection
+    DWRITE_FONT_WEIGHT_NORMAL,         // fontWeight
+    DWRITE_FONT_STYLE_NORMAL,          // fontStyle
+    DWRITE_FONT_STRETCH_NORMAL,        // fontStretch
+    50.0f,                             // fontSize
+    L"",                               // localeName
+    &m_textFormat                      // textFormat
+  );
+  assert(m_textFormat);
+
+  // Center text horizontally and vertically.
+  CALL_HR_WINAPI(m_textFormat->SetTextAlignment,
+    DWRITE_TEXT_ALIGNMENT_CENTER);
+  CALL_HR_WINAPI(m_textFormat->SetParagraphAlignment,
+    DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+}
+
+
+void GVMainWindow::destroyDeviceIndependentResources()
+{
+  safeRelease(m_d2dFactory);
+  safeRelease(m_writeFactory);
+  safeRelease(m_textFormat);
+}
+
+
 LRESULT CALLBACK GVMainWindow::handleMessage(
   UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg) {
     case WM_CREATE: {
-      CALL_HR_WINAPI(D2D1CreateFactory,
-        D2D1_FACTORY_TYPE_SINGLE_THREADED,
-        &m_d2dFactory);
-
       if (g_useTransparency) {
         // Arrange to treat purple as transparent.
         //
@@ -223,13 +297,14 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
         }
       }
 
+      createDeviceIndependentResources();
       return 0;
     }
 
     case WM_DESTROY:
       TRACE2(L"received WM_DESTROY");
       discardGraphicsResources();
-      safeRelease(m_d2dFactory);
+      destroyDeviceIndependentResources();
       PostQuitMessage(0);
       return 0;
 

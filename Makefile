@@ -18,8 +18,12 @@ LDFLAGS += -municode
 
 LIBS :=
 
-# Direct2D.
+# Direct2D.  For me, the actual file is:
+# /d/opt/winlibs-mingw64-13.2/x86_64-w64-mingw32/lib/libd2d1.a.
 LIBS += -ld2d1
+
+# DirectWrite.  For me the file is libdwrite.a next to libd2d1.a.
+LIBS += -ldwrite
 
 
 OBJS :=
