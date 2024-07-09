@@ -120,7 +120,9 @@ void GVMainWindow::onPaint()
 
     m_renderTarget->BeginDraw();
 
-    m_renderTarget->Clear(D2D1::ColorF(D2D1::ColorF::SkyBlue));
+    // Use a purple background, which is then keyed as transparent.
+    m_renderTarget->Clear(D2D1::ColorF(1.0f, 0.0f, 1.0f));
+
     m_renderTarget->FillEllipse(m_ellipse, m_brush);
 
     hr = m_renderTarget->EndDraw();
@@ -162,6 +164,32 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
         TRACE1(L"D2D1CreateFactory failed");
         return -1;
       }
+
+      // Arrange to treat purple as transparent.
+      //
+      // The exact choice of transparent color is important!  In
+      // particular, the red and blue values must be equal, otherwise
+      // mouse clicks do or do not go through correctly.  See:
+      //
+      //   https://stackoverflow.com/a/35242134/2659307
+      //
+      // Even then, after a few interactions, the window decorations
+      // stop being interactable until one minimizes and restores.
+      //
+      // Note: It does *not* work to use a background color with zero
+      // alpha and then use `LWA_ALPHA`.  `LWA_ALPHA` just applies its
+      // alpha to the entire window, while the alpha channel of the
+      // color is ignored.
+      //
+      BOOL ok = SetLayeredWindowAttributes(
+        m_hwnd,
+        RGB(255,0,255),      // crKey, the transparent color.
+        255,                 // bAlpha (ignored here I think).
+        LWA_COLORKEY);       // dwFlags
+      if (!ok) {
+        winapiDie(L"SetLayeredWindowAttributes");
+      }
+
       return 0;
     }
 
@@ -198,6 +226,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
   // Create the window.
   CreateWindowExWArgs cw;
+  cw.m_dwExStyle = WS_EX_LAYERED;      // For `SetLayeredWindowAttributes`.
   cw.m_lpWindowName = L"Gamepad Viewer";
   cw.m_dwStyle = WS_OVERLAPPEDWINDOW;
 
