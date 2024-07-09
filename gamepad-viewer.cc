@@ -6,6 +6,7 @@
 #include "winapi-util.h"               // getLastErrorMessage, CreateWindowExWArgs
 
 #include <d2d1.h>                      // Direct2D
+#include <d2d1_1.h>                    // D2D1_STROKE_STYLE_PROPERTIES1
 #include <dwrite.h>                    // DirectWrite
 #include <windows.h>                   // Windows API
 #include <windowsx.h>                  // GET_X_PARAM, GET_Y_LPARAM
@@ -54,9 +55,11 @@ GVMainWindow::GVMainWindow()
   : m_d2dFactory(nullptr),
     m_writeFactory(nullptr),
     m_textFormat(nullptr),
+    m_strokeStyleFixedThickness(nullptr),
     m_renderTarget(nullptr),
     m_yellowBrush(nullptr),
     m_textBrush(nullptr),
+    m_linesBrush(nullptr),
     m_ellipse(),
     m_rotDegrees(0),
     m_controllerState(),
@@ -99,6 +102,31 @@ void GVMainWindow::createDeviceIndependentResources()
     CALL_HR_WINAPI(m_textFormat->SetParagraphAlignment,
       DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
   }
+
+  // Make a stroke style that has a fixed width, thereby avoiding the
+  // effects of coordinate transformations.
+  //
+  // Everything here is intended to be the defaults, except for the
+  // `transformType`.
+  //
+  // See https://stackoverflow.com/a/75570749/2659307 .
+  //
+  D2D1_STROKE_STYLE_PROPERTIES1 ssp{};
+  ssp.startCap = D2D1_CAP_STYLE_FLAT;
+  ssp.endCap = D2D1_CAP_STYLE_FLAT;
+  ssp.dashCap = D2D1_CAP_STYLE_FLAT;
+  ssp.lineJoin = D2D1_LINE_JOIN_MITER;
+  ssp.miterLimit = 10.0f;
+  ssp.dashStyle = D2D1_DASH_STYLE_SOLID;
+  ssp.dashOffset = 0.0f;
+  ssp.transformType = D2D1_STROKE_TRANSFORM_TYPE_FIXED;
+
+  CALL_HR_WINAPI(m_d2dFactory->CreateStrokeStyle,
+    ssp,
+    nullptr,
+    0,
+    &m_strokeStyleFixedThickness);
+  assert(m_strokeStyleFixedThickness);
 }
 
 
@@ -107,6 +135,7 @@ void GVMainWindow::destroyDeviceIndependentResources()
   safeRelease(m_d2dFactory);
   safeRelease(m_writeFactory);
   safeRelease(m_textFormat);
+  safeRelease(m_strokeStyleFixedThickness);
 }
 
 
@@ -159,7 +188,7 @@ void GVMainWindow::createGraphicsResources()
     assert(m_renderTarget);
 
     // Create a yellow brush used to fill the ellipse.
-    D2D1_COLOR_F const color = D2D1::ColorF(1.0f, 1.0f, 0.0f);
+    D2D1_COLOR_F const color = D2D1::ColorF(0.9, 0.9, 0.75);
     CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
       color, &m_yellowBrush);
     assert(m_yellowBrush);
@@ -168,6 +197,10 @@ void GVMainWindow::createGraphicsResources()
       D2D1::ColorF(D2D1::ColorF::Blue),
       &m_textBrush);
     assert(m_textBrush);
+
+    CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
+      D2D1::ColorF(0.5, 0.5, 0.9),
+      &m_linesBrush);
 
     calculateLayout();
   }
@@ -179,6 +212,7 @@ void GVMainWindow::discardGraphicsResources()
   safeRelease(m_renderTarget);
   safeRelease(m_yellowBrush);
   safeRelease(m_textBrush);
+  safeRelease(m_linesBrush);
 }
 
 
@@ -236,6 +270,20 @@ void GVMainWindow::onPaint()
 }
 
 
+// Create a transformation matrix so that (0,0) is mapped to
+// (left,top) and (1,1) is mapped to (right,bottom).
+static D2D1_MATRIX_3X2_F focusArea(
+  float left,
+  float top,
+  float right,
+  float bottom)
+{
+  return
+    D2D1::Matrix3x2F::Scale(right-left, bottom-top) *
+    D2D1::Matrix3x2F::Translation(left, top);
+}
+
+
 void GVMainWindow::drawControllerState()
 {
   std::wostringstream oss;
@@ -262,6 +310,63 @@ void GVMainWindow::drawControllerState()
     m_textFormat,
     D2D1::RectF(100, 100, renderTargetSize.width, renderTargetSize.height),
     m_textBrush);
+
+  if (!( renderTargetSize.width > 0 && renderTargetSize.height > 0 )) {
+    // Bail if the sizes are zero.
+    return;
+  }
+
+  // Create a coordinate system where the upper-left is (0,0) and the
+  // lower-right is (1,1).
+  D2D1_MATRIX_3X2_F baseTransform =
+    D2D1::Matrix3x2F::Scale(renderTargetSize.width, renderTargetSize.height);
+
+  // Draw a circle in the lower-left quadrant.
+  drawCircle(focusArea(0.0, 0.5, 0.5, 1.0) * baseTransform, false);
+
+  // And another in the lower-right, filled.
+  drawCircle(focusArea(0.5, 0.5, 1.0, 1.0) * baseTransform, true);
+
+  // Draw the round buttoms.
+  drawRoundButtons(focusArea(0.75, 0.5, 1, 0.75) * baseTransform);
+}
+
+
+void GVMainWindow::drawCircle(
+  D2D1_MATRIX_3X2_F transform,
+  bool fill)
+{
+  m_renderTarget->SetTransform(transform);
+
+  D2D1_ELLIPSE circle;
+  circle.point.x = 0.5;
+  circle.point.y = 0.5;
+  circle.radiusX = 0.4;
+  circle.radiusY = 0.4;
+
+  // Draw the outline always since the stroke width means the outer
+  // edge is a bit larger than the filled ellipse.
+  m_renderTarget->DrawEllipse(
+    circle,
+    m_linesBrush,
+    3.0,                               // strokeWidth in pixels
+    m_strokeStyleFixedThickness);      // strokeStyle
+
+  if (fill) {
+    m_renderTarget->FillEllipse(
+      circle,
+      m_linesBrush);
+  }
+}
+
+
+void GVMainWindow::drawRoundButtons(
+  D2D1_MATRIX_3X2_F transform)
+{
+  WORD buttons = m_controllerState.Gamepad.wButtons;
+
+  drawCircle(focusArea(0.4, 0, 0.6, 0.2) * transform,
+    buttons & XINPUT_GAMEPAD_Y);
 }
 
 

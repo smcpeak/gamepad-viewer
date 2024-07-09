@@ -7,6 +7,7 @@
 #include "base-window.h"               // BaseWindow
 
 #include <d2d1.h>                      // Direct2D
+#include <d2d1_1.h>                    // ID2D1StrokeStyle1, ID2DFactory1
 #include <dwrite.h>                    // IDWriteFactory, IDWriteTextFormat
 #include <windows.h>                   // Windows API
 #include <xinput.h>                    // XINPUT_STATE
@@ -18,13 +19,16 @@ public:      // data
   // ---------------- D2D device-independent resources -----------------
   // D2D factory used to create the render target.  This is, I think,
   // the root interface to D2D.
-  ID2D1Factory *m_d2dFactory;
+  ID2D1Factory1 *m_d2dFactory;
 
   // DirectWrite factory, used to create `m_textFormat`.
   IDWriteFactory *m_writeFactory;
 
   // "Text format" object for ... what?
   IDWriteTextFormat *m_textFormat;
+
+  // Stroke style to avoid transforming its thickness.
+  ID2D1StrokeStyle1 *m_strokeStyleFixedThickness;
 
   // ----------------- D2D device-dependent resources ------------------
   // D2D render target associated with the main window.
@@ -36,6 +40,10 @@ public:      // data
 
   // Brush for drawing text.
   ID2D1SolidColorBrush *m_textBrush;
+
+  // Brush for drawing the thin lines that are always shown for buttons,
+  // etc.
+  ID2D1SolidColorBrush *m_linesBrush;
 
   // ------------------------- Other app state -------------------------
   // Shape of ellipse to draw.
@@ -83,6 +91,12 @@ public:      // methods
 
   // Draw the controller state on `m_renderTarget`.
   void drawControllerState();
+
+  // Draw a centered circle mostly filling the box.
+  void drawCircle(D2D1_MATRIX_3X2_F transform, bool fill);
+
+  // Draw the round face buttons.
+  void drawRoundButtons(D2D1_MATRIX_3X2_F transform);
 
   // Cause a repaint event that will redraw the entire window.
   void invalidateAllPixels();
