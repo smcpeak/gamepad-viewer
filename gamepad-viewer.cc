@@ -206,6 +206,18 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
     case WM_SIZE:
       onResize();
       return 0;
+
+    case WM_NCHITTEST: {
+      // Arrange to drag the window whenever its interior is clicked.
+      //
+      // https://stackoverflow.com/a/7773941/2659307
+      //
+      LRESULT hit = DefWindowProc(m_hwnd, uMsg, wParam, lParam);
+      if (hit == HTCLIENT) {
+        hit = HTCAPTION;
+      }
+      return hit;
+    }
   }
 
   return BaseWindow::handleMessage(uMsg, wParam, lParam);
