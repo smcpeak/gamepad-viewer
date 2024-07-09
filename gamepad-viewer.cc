@@ -54,15 +54,13 @@ void GVMainWindow::calculateLayout()
     D2D1_SIZE_F size = m_renderTarget->GetSize();
     float const x = size.width / 2;
     float const y = size.height / 2;
-    float const radius = std::min(x, y);
-    m_ellipse = D2D1::Ellipse(D2D1::Point2F(x, y), radius, radius);
+    m_ellipse = D2D1::Ellipse(D2D1::Point2F(x, y), x, y);
 
     TRACE2(L"calculateLayout:"
            L" width=" << size.width <<
            L" height=" << size.height <<
            L" x=" << x <<
-           L" y=" << y <<
-           L" radius=" << radius);
+           L" y=" << y);
   }
 }
 
