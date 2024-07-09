@@ -131,6 +131,9 @@ public:      // methods
   // Draw one of the sticks.
   void drawStick(D2D1_MATRIX_3X2_F transform, bool leftSide);
 
+  // Draw one of the select/start buttons.
+  void drawSelStartButton(D2D1_MATRIX_3X2_F transform, bool leftSide);
+
   // Cause a repaint event that will redraw the entire window.
   void invalidateAllPixels();
 

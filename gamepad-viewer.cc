@@ -339,6 +339,12 @@ void GVMainWindow::drawControllerState()
     true /*left*/);
   drawStick(focusArea(0.5, 0.5, 1.0, 1.0) * baseTransform,
     false /*left*/);
+
+  // Draw the select and start buttons.
+  drawSelStartButton(focusArea(0.37, 0.37, 0.47, 0.43) * baseTransform,
+    true /*left*/);
+  drawSelStartButton(focusArea(0.52, 0.37, 0.62, 0.43) * baseTransform,
+    false /*left*/);
 }
 
 
@@ -568,6 +574,18 @@ void GVMainWindow::drawStick(
   if (buttons & mask) {
     drawCircle(transform, false /*fill*/);
   }
+}
+
+
+void GVMainWindow::drawSelStartButton(
+  D2D1_MATRIX_3X2_F transform,
+  bool leftSide)
+{
+  WORD buttons = m_controllerState.Gamepad.wButtons;
+  WORD mask = (leftSide? XINPUT_GAMEPAD_BACK :  // PS select
+                         XINPUT_GAMEPAD_START);
+
+  drawSquare(transform, buttons & mask);
 }
 
 
