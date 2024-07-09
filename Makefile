@@ -29,4 +29,9 @@ gamepad-viewer.exe: $(OBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(OBJS) $(LIBS)
 
 
+.PHONY: clean
+clean:
+	$(RM) *.o *.exe
+
+
 # EOF
