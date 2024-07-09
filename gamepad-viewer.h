@@ -98,11 +98,19 @@ public:      // methods
   // Draw a square in the box.
   void drawSquare(D2D1_MATRIX_3X2_F transform, bool fill);
 
+  // Draw a square that is filled, from the bottom, by `fillAmount`.
+  void drawPartiallyFilledSquare(
+    D2D1_MATRIX_3X2_F transform,
+    float fillAmount);
+
   // Draw the round face buttons.
   void drawRoundButtons(D2D1_MATRIX_3X2_F transform);
 
   // Draw the dpad buttons.
   void drawDPadButtons(D2D1_MATRIX_3X2_F transform);
+
+  // Draw the left or right shoulder button and trigger.
+  void drawShoulderButtons(D2D1_MATRIX_3X2_F transform, bool leftSide);
 
   // Cause a repaint event that will redraw the entire window.
   void invalidateAllPixels();

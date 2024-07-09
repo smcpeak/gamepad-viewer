@@ -332,6 +332,12 @@ void GVMainWindow::drawControllerState()
 
   // Draw the dpad.
   drawDPadButtons(focusArea(0.0, 0.25, 0.3, 0.55) * baseTransform);
+
+  // Draw the shoulder buttons.
+  drawShoulderButtons(focusArea(0.0, 0.0, 0.3, 0.25) * baseTransform,
+    true /*left*/);
+  drawShoulderButtons(focusArea(0.7, 0.0, 1.0, 0.25) * baseTransform,
+    false /*left*/);
 }
 
 
@@ -367,6 +373,14 @@ void GVMainWindow::drawSquare(
   D2D1_MATRIX_3X2_F transform,
   bool fill)
 {
+  drawPartiallyFilledSquare(transform, fill? 1.0 : 0.0);
+}
+
+
+void GVMainWindow::drawPartiallyFilledSquare(
+  D2D1_MATRIX_3X2_F transform,
+  float fillAmount)
+{
   m_renderTarget->SetTransform(transform);
 
   D2D1_RECT_F square;
@@ -383,7 +397,9 @@ void GVMainWindow::drawSquare(
     3.0,                               // strokeWidth in pixels
     m_strokeStyleFixedThickness);      // strokeStyle
 
-  if (fill) {
+  if (fillAmount > 0) {
+    square.top = square.bottom - (square.bottom-square.top) * fillAmount;
+
     m_renderTarget->FillRectangle(
       square,
       m_linesBrush);
@@ -436,6 +452,28 @@ void GVMainWindow::drawDPadButtons(
     transform =
       D2D1::Matrix3x2F::Rotation(90, D2D1::Point2F(0.5, 0.5)) * transform;
   }
+}
+
+
+void GVMainWindow::drawShoulderButtons(
+  D2D1_MATRIX_3X2_F transform,
+  bool leftSide)
+{
+  WORD buttons = m_controllerState.Gamepad.wButtons;
+  WORD mask = (leftSide? XINPUT_GAMEPAD_LEFT_SHOULDER :
+                         XINPUT_GAMEPAD_RIGHT_SHOULDER);
+
+  // Bumper.
+  drawSquare(focusArea(0.0, 0.7, 1.0, 1.0) * transform,
+    buttons & mask);
+
+  BYTE trigger = (leftSide? m_controllerState.Gamepad.bLeftTrigger :
+                            m_controllerState.Gamepad.bRightTrigger);
+  float fillAmount = trigger / 255.0;
+
+  // Trigger.
+  drawPartiallyFilledSquare(focusArea(0.0, 0.0, 1.0, 0.7) * transform,
+    fillAmount);
 }
 
 
