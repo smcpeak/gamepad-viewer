@@ -200,6 +200,7 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
     }
 
     case WM_DESTROY:
+      TRACE2(L"received WM_DESTROY");
       discardGraphicsResources();
       safeRelease(m_d2dFactory);
       PostQuitMessage(0);
@@ -223,6 +224,16 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
         hit = HTCAPTION;
       }
       return hit;
+    }
+
+    case WM_KEYDOWN: {
+      if (wParam == 'Q') {
+        // Q to quit.
+        TRACE2(L"Saw Q keypress.");
+        PostMessage(m_hwnd, WM_CLOSE, 0, 0);
+        return 0;
+      }
+      break;
     }
   }
 
@@ -277,6 +288,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     DispatchMessage(&msg);
   }
 
+  TRACE2(L"Returning from main");
   return 0;
 }
 
