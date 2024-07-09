@@ -17,6 +17,7 @@ LIBS :=
 
 
 OBJS :=
+OBJS += base-window.o
 OBJS += gamepad-viewer.o
 OBJS += winapi-util.o
 

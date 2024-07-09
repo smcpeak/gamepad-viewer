@@ -1,14 +1,23 @@
 // gamepad-viewer.cc
 // Program to show the current gamepad input state.
 
+#include "base-window.h"               // BaseWindow
 #include "winapi-util.h"               // getLastErrorMessage, CreateWindowExWArgs
 
 #include <windows.h>                   // Windows API
 
-#include <iostream>                    // std::wcout
+#include <cassert>                     // assert
 
 
-LRESULT CALLBACK mainWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+class MainWindow : public BaseWindow {
+public:      // methods
+  virtual LRESULT handleMessage(
+    UINT uMsg, WPARAM wParam, LPARAM lParam) override;
+};
+
+
+LRESULT CALLBACK MainWindow::handleMessage(
+  UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg) {
     case WM_DESTROY:
@@ -17,7 +26,7 @@ LRESULT CALLBACK mainWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 
     case WM_PAINT: {
       PAINTSTRUCT ps;
-      HDC hdc = BeginPaint(hwnd, &ps);
+      HDC hdc = BeginPaint(m_hwnd, &ps);
       if (!hdc) {
         winapiDieNLE(L"BeginPaint");
       }
@@ -28,44 +37,31 @@ LRESULT CALLBACK mainWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
         winapiDieNLE(L"FillRect");
       }
 
-      EndPaint(hwnd, &ps);
+      EndPaint(m_hwnd, &ps);
       return 0;
     }
   }
 
-  return DefWindowProc(hwnd, uMsg, wParam, lParam);
+  return BaseWindow::handleMessage(uMsg, wParam, lParam);
 }
 
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+                    PWSTR pCmdLine, int nCmdShow)
 {
-  // Register the window class.
-  const wchar_t CLASS_NAME[]  = L"Gamepad Viewer";
-
-  WNDCLASS wc = { };
-
-  wc.lpfnWndProc   = mainWindowProc;
-  wc.hInstance     = hInstance;
-  wc.lpszClassName = CLASS_NAME;
-  wc.hCursor       = LoadCursor(nullptr, IDC_ARROW);
-
-  if (RegisterClass(&wc) == 0) {
-    winapiDie(L"RegisterClass");
-  }
+  // Elsewhere, I rely on the assumption that I can get the module
+  // handle using `GetModuleHandle`.
+  assert(hInstance == GetModuleHandle(nullptr));
 
   // Create the window.
   CreateWindowExWArgs cw;
-  cw.m_lpClassName = CLASS_NAME;
   cw.m_lpWindowName = L"Gamepad Viewer";
   cw.m_dwStyle = WS_OVERLAPPEDWINDOW;
 
-  HWND hwnd = cw.createWindow();
-  if (hwnd == NULL) {
-    winapiDie(L"CreateWindowExW");
-    return 2;
-  }
+  MainWindow mainWindow;
+  mainWindow.createWindow(cw);
 
-  ShowWindow(hwnd, nCmdShow);
+  ShowWindow(mainWindow.m_hwnd, nCmdShow);
 
   // Run the message loop.
 
