@@ -58,11 +58,8 @@ GVMainWindow::GVMainWindow()
     m_textFormat(nullptr),
     m_strokeStyleFixedThickness(nullptr),
     m_renderTarget(nullptr),
-    m_yellowBrush(nullptr),
     m_textBrush(nullptr),
     m_linesBrush(nullptr),
-    m_ellipse(),
-    m_rotDegrees(0),
     m_controllerState(),
     m_hasControllerState(false)
 {
@@ -158,23 +155,6 @@ D2D1_SIZE_U GVMainWindow::getClientRectSizeU() const
 }
 
 
-void GVMainWindow::calculateLayout()
-{
-  if (m_renderTarget) {
-    D2D1_SIZE_F size = m_renderTarget->GetSize();
-    float const x = size.width / 2;
-    float const y = size.height / 2;
-    m_ellipse = D2D1::Ellipse(D2D1::Point2F(x, y), x, y);
-
-    TRACE2(L"calculateLayout:"
-           L" width=" << size.width <<
-           L" height=" << size.height <<
-           L" x=" << x <<
-           L" y=" << y);
-  }
-}
-
-
 void GVMainWindow::createGraphicsResources()
 {
   if (!m_renderTarget) {
@@ -188,22 +168,16 @@ void GVMainWindow::createGraphicsResources()
       &m_renderTarget);
     assert(m_renderTarget);
 
-    // Create a yellow brush used to fill the ellipse.
-    D2D1_COLOR_F const color = D2D1::ColorF(0.9, 0.9, 0.75);
+    // Pale blue for the lines and text.
+    D2D1_COLOR_F const linesColor = D2D1::ColorF(0.5, 0.5, 0.9);
     CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
-      color, &m_yellowBrush);
-    assert(m_yellowBrush);
-
-    CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
-      D2D1::ColorF(D2D1::ColorF::Blue),
+      linesColor,
       &m_textBrush);
     assert(m_textBrush);
 
     CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
-      D2D1::ColorF(0.5, 0.5, 0.9),
+      linesColor,
       &m_linesBrush);
-
-    calculateLayout();
   }
 }
 
@@ -211,7 +185,6 @@ void GVMainWindow::createGraphicsResources()
 void GVMainWindow::discardGraphicsResources()
 {
   safeRelease(m_renderTarget);
-  safeRelease(m_yellowBrush);
   safeRelease(m_textBrush);
   safeRelease(m_linesBrush);
 }
@@ -247,12 +220,10 @@ void GVMainWindow::onPaint()
   // Use a black background, which is then keyed as transparent.
   m_renderTarget->Clear(D2D1::ColorF(0.0f, 0.0f, 0.0f));
 
-  // Rotate the ellipse.
-  m_renderTarget->SetTransform(
-    D2D1::Matrix3x2F::Rotation(m_rotDegrees, m_ellipse.point));
+  // Reset the transform.
+  m_renderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
 
-  m_renderTarget->FillEllipse(m_ellipse, m_yellowBrush);
-
+  // Draw the controller buttons, etc.
   drawControllerState();
 
   HRESULT hr = m_renderTarget->EndDraw();
@@ -593,7 +564,6 @@ void GVMainWindow::onResize()
 {
   if (m_renderTarget) {
     m_renderTarget->Resize(getClientRectSizeU());
-    calculateLayout();
 
     // Cause a repaint event for the entire window, not just any newly
     // exposed part, because the size affects everything displayed.
@@ -615,16 +585,6 @@ bool GVMainWindow::onKeyDown(WPARAM wParam, LPARAM lParam)
       // Q to quit.
       TRACE2(L"Saw Q keypress.");
       PostMessage(m_hwnd, WM_CLOSE, 0, 0);
-      return true;
-
-    case VK_LEFT:
-      m_rotDegrees -= 10;
-      invalidateAllPixels();
-      return true;
-
-    case VK_RIGHT:
-      m_rotDegrees += 10;
-      invalidateAllPixels();
       return true;
   }
 

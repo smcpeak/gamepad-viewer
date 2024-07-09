@@ -34,10 +34,6 @@ public:      // data
   // D2D render target associated with the main window.
   ID2D1HwndRenderTarget *m_renderTarget;
 
-  // A solid yellow brush associated with `m_renderTarget` and used to
-  // fill the ellipse.
-  ID2D1SolidColorBrush *m_yellowBrush;
-
   // Brush for drawing text.
   ID2D1SolidColorBrush *m_textBrush;
 
@@ -46,12 +42,6 @@ public:      // data
   ID2D1SolidColorBrush *m_linesBrush;
 
   // ------------------------- Other app state -------------------------
-  // Shape of ellipse to draw.
-  D2D1_ELLIPSE m_ellipse;
-
-  // Clockwise rotation to apply to the drawn ellipse, in degrees.
-  int m_rotDegrees;
-
   // Current controller input.
   XINPUT_STATE m_controllerState;
 
@@ -72,9 +62,6 @@ public:      // methods
 
   // Return the client rectangle size as a D2D1_SIZE_U.
   D2D1_SIZE_U getClientRectSizeU() const;
-
-  // Set `m_ellipse` based on `m_renderTarget`.
-  void calculateLayout();
 
   // If necessary, populate `m_renderTarget`, `m_brush`, and
   // `m_ellipse`.
