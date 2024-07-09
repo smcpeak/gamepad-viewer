@@ -23,6 +23,10 @@
 int g_tracingLevel = 1;
 
 
+// True to use the transparency effects.
+bool g_useTransparency = true;
+
+
 // Write a diagnostic message.
 #define TRACE(level, msg)           \
   if (g_tracingLevel >= (level)) {  \
@@ -165,29 +169,31 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
         return -1;
       }
 
-      // Arrange to treat purple as transparent.
-      //
-      // The exact choice of transparent color is important!  In
-      // particular, the red and blue values must be equal, otherwise
-      // mouse clicks do or do not go through correctly.  See:
-      //
-      //   https://stackoverflow.com/a/35242134/2659307
-      //
-      // Even then, after a few interactions, the window decorations
-      // stop being interactable until one minimizes and restores.
-      //
-      // Note: It does *not* work to use a background color with zero
-      // alpha and then use `LWA_ALPHA`.  `LWA_ALPHA` just applies its
-      // alpha to the entire window, while the alpha channel of the
-      // color is ignored.
-      //
-      BOOL ok = SetLayeredWindowAttributes(
-        m_hwnd,
-        RGB(255,0,255),      // crKey, the transparent color.
-        255,                 // bAlpha (ignored here I think).
-        LWA_COLORKEY);       // dwFlags
-      if (!ok) {
-        winapiDie(L"SetLayeredWindowAttributes");
+      if (g_useTransparency) {
+        // Arrange to treat purple as transparent.
+        //
+        // The exact choice of transparent color is important!  In
+        // particular, the red and blue values must be equal, otherwise
+        // mouse clicks do or do not go through correctly.  See:
+        //
+        //   https://stackoverflow.com/a/35242134/2659307
+        //
+        // Even then, after a few interactions, the window decorations
+        // stop being interactable until one minimizes and restores.
+        //
+        // Note: It does *not* work to use a background color with zero
+        // alpha and then use `LWA_ALPHA`.  `LWA_ALPHA` just applies its
+        // alpha to the entire window, while the alpha channel of the
+        // color is ignored.
+        //
+        BOOL ok = SetLayeredWindowAttributes(
+          m_hwnd,
+          RGB(255,0,255),      // crKey, the transparent color.
+          255,                 // bAlpha (ignored here I think).
+          LWA_COLORKEY);       // dwFlags
+        if (!ok) {
+          winapiDie(L"SetLayeredWindowAttributes");
+        }
       }
 
       return 0;
@@ -224,6 +230,19 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
 }
 
 
+// If `envvar` is set, return its value as an integer.  Otherwise return
+// `defaultValue`.
+static int envIntOr(char const *envvar, int defaultValue)
+{
+  if (char const *value = std::getenv(envvar)) {
+    return std::atoi(value);
+  }
+  else {
+    return defaultValue;
+  }
+}
+
+
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                     PWSTR pCmdLine, int nCmdShow)
 {
@@ -231,14 +250,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   // handle using `GetModuleHandle`.
   assert(hInstance == GetModuleHandle(nullptr));
 
-  // Set tracing level based on envvar.
-  if (char const *traceStr = std::getenv("TRACE")) {
-    g_tracingLevel = std::atoi(traceStr);
-  }
+  g_tracingLevel = envIntOr("TRACE", 1);
+  g_useTransparency = envIntOr("TRANSPARENT", 1) != 0;
 
   // Create the window.
   CreateWindowExWArgs cw;
-  cw.m_dwExStyle = WS_EX_LAYERED;      // For `SetLayeredWindowAttributes`.
+  if (g_useTransparency) {
+    cw.m_dwExStyle = WS_EX_LAYERED;    // For `SetLayeredWindowAttributes`.
+  }
   cw.m_lpWindowName = L"Gamepad Viewer";
   cw.m_dwStyle = WS_OVERLAPPEDWINDOW;
 
