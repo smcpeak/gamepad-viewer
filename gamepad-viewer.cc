@@ -512,7 +512,7 @@ void GVMainWindow::drawStick(
   bool leftSide)
 {
   // Outline.
-  drawCircle(transform, false /*fill*/);
+  drawCircleAt(transform, 0.5, 0.5, 0.4, false /*fill*/);
 
   // Raw stick position in [-32768,32767], positive being rightward.
   float rawX = (leftSide? m_controllerState.Gamepad.sThumbLX :
@@ -558,6 +558,15 @@ void GVMainWindow::drawStick(
 
     // Line back to the center representing the shaft.
     drawLine(transform, 0.5, 0.5, spotX, spotY);
+  }
+
+  WORD buttons = m_controllerState.Gamepad.wButtons;
+  WORD mask = (leftSide? XINPUT_GAMEPAD_LEFT_THUMB :
+                         XINPUT_GAMEPAD_RIGHT_THUMB);
+
+  // Stick click button.
+  if (buttons & mask) {
+    drawCircle(transform, false /*fill*/);
   }
 }
 
