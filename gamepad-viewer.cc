@@ -10,6 +10,7 @@
 
 #include <algorithm>                   // std::min
 #include <cassert>                     // assert
+#include <cstdlib>                     // std::{getenv, atoi}
 #include <iostream>                    // std::{wcerr, flush}
 
 
@@ -189,6 +190,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   // Elsewhere, I rely on the assumption that I can get the module
   // handle using `GetModuleHandle`.
   assert(hInstance == GetModuleHandle(nullptr));
+
+  // Set tracing level based on envvar.
+  if (char const *traceStr = std::getenv("TRACE")) {
+    g_tracingLevel = std::atoi(traceStr);
+  }
 
   // Create the window.
   CreateWindowExWArgs cw;
