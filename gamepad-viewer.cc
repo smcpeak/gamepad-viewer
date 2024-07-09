@@ -259,11 +259,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     cw.m_dwExStyle = WS_EX_LAYERED;    // For `SetLayeredWindowAttributes`.
   }
   cw.m_lpWindowName = L"Gamepad Viewer";
-  cw.m_dwStyle = WS_OVERLAPPEDWINDOW;
+  cw.m_x = cw.m_y = 300;
+  cw.m_nWidth = cw.m_nHeight = 400;
+  cw.m_dwStyle = WS_POPUPWINDOW;
 
   GVMainWindow mainWindow;
   mainWindow.createWindow(cw);
 
+  TRACE2(L"Calling ShowWindow");
   ShowWindow(mainWindow.m_hwnd, nCmdShow);
 
   // Run the message loop.
