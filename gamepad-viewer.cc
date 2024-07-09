@@ -7,6 +7,7 @@
 
 #include <d2d1.h>                      // Direct2D
 #include <windows.h>                   // Windows API
+#include <windowsx.h>                  // GET_X_PARAM, GET_Y_LPARAM
 
 #include <algorithm>                   // std::min
 #include <cassert>                     // assert
@@ -215,14 +216,72 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
       return 0;
 
     case WM_NCHITTEST: {
-      // Arrange to drag the window whenever its interior is clicked.
+      // Arrange to drag the window whenever the ellipse is clicked, and
+      // resize in the corner areas.
       //
       // https://stackoverflow.com/a/7773941/2659307
       //
       LRESULT hit = DefWindowProc(m_hwnd, uMsg, wParam, lParam);
       if (hit == HTCLIENT) {
-        hit = HTCAPTION;
+        // Get client-relative click point.
+        POINT clientRelPt;
+        clientRelPt.x = GET_X_LPARAM(lParam);
+        clientRelPt.y = GET_Y_LPARAM(lParam);
+        if (!ScreenToClient(m_hwnd, &clientRelPt)) {
+          winapiDie(L"ScreenToClient");
+        }
+
+        // Adjust the point to be relative to the center of the ellipse.
+        D2D1_POINT_2F centerRelPt;
+        centerRelPt.x = clientRelPt.x - m_ellipse.point.x;
+        centerRelPt.y = clientRelPt.y - m_ellipse.point.y;
+
+        // Declare out here so I can print them later.
+        float scaledX = 0;
+        float scaledY = 0;
+
+        if (m_ellipse.radiusX > 0 && m_ellipse.radiusY > 0) {
+          // Normalize the coordinate as if on a unit circle.
+          scaledX = centerRelPt.x / m_ellipse.radiusX;
+          scaledY = centerRelPt.y / m_ellipse.radiusY;
+
+          if (scaledX*scaledX + scaledY*scaledY <= 0.5) {
+            // The point is near the center of that circle.
+            hit = HTCAPTION;           //  2
+          }
+          else {
+            if (scaledX < 0) {
+              if (scaledY < 0) {
+                hit = HTTOPLEFT;       // 13
+              }
+              else {
+                hit = HTBOTTOMLEFT;    // 16
+              }
+            }
+            else {
+              if (scaledY < 0) {
+                hit = HTTOPRIGHT;      // 14
+              }
+              else {
+                hit = HTBOTTOMRIGHT;   // 17
+              }
+            }
+          }
+        }
+
+        #define LSTR(x) L ## x
+        #define TRVAL(expr) L" " LSTR(#expr) L"=" << (expr)
+
+        TRACE2(L"WM_NCHITTEST:"
+          TRVAL(clientRelPt.x) <<
+          TRVAL(clientRelPt.y) <<
+          TRVAL(centerRelPt.x) <<
+          TRVAL(centerRelPt.y) <<
+          TRVAL(scaledX) <<
+          TRVAL(scaledY) <<
+          TRVAL(hit));
       }
+
       return hit;
     }
 
@@ -272,7 +331,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   cw.m_lpWindowName = L"Gamepad Viewer";
   cw.m_x = cw.m_y = 300;
   cw.m_nWidth = cw.m_nHeight = 400;
-  cw.m_dwStyle = WS_POPUPWINDOW;
+  cw.m_dwStyle = WS_POPUP;
 
   GVMainWindow mainWindow;
   mainWindow.createWindow(cw);
