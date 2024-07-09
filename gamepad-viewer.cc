@@ -14,6 +14,7 @@
 
 #include <algorithm>                   // std::min
 #include <cassert>                     // assert
+#include <cmath>                       // std::{cos, sin, atan2, sqrt}
 #include <cstdlib>                     // std::{getenv, atoi}
 #include <cstring>                     // std::memset
 #include <iostream>                    // std::{wcerr, flush}
@@ -321,12 +322,6 @@ void GVMainWindow::drawControllerState()
   D2D1_MATRIX_3X2_F baseTransform =
     D2D1::Matrix3x2F::Scale(renderTargetSize.width, renderTargetSize.height);
 
-  // Draw a circle in the lower-left quadrant.
-  drawCircle(focusArea(0.0, 0.5, 0.5, 1.0) * baseTransform, false);
-
-  // And another in the lower-right, filled.
-  drawCircle(focusArea(0.5, 0.5, 1.0, 1.0) * baseTransform, true);
-
   // Draw the round buttons.
   drawRoundButtons(focusArea(0.70, 0.25, 1.0, 0.55) * baseTransform);
 
@@ -337,6 +332,12 @@ void GVMainWindow::drawControllerState()
   drawShoulderButtons(focusArea(0.0, 0.0, 0.3, 0.25) * baseTransform,
     true /*left*/);
   drawShoulderButtons(focusArea(0.7, 0.0, 1.0, 0.25) * baseTransform,
+    false /*left*/);
+
+  // Draw the sticks.
+  drawStick(focusArea(0.0, 0.5, 0.5, 1.0) * baseTransform,
+    true /*left*/);
+  drawStick(focusArea(0.5, 0.5, 1.0, 1.0) * baseTransform,
     false /*left*/);
 }
 
@@ -366,6 +367,17 @@ void GVMainWindow::drawCircle(
       circle,
       m_linesBrush);
   }
+}
+
+
+void GVMainWindow::drawCircleAt(
+  D2D1_MATRIX_3X2_F transform,
+  float x,
+  float y,
+  float r,
+  bool fill)
+{
+  drawCircle(focusArea(x-r, y-r, x+r, y+r) * transform, fill);
 }
 
 
@@ -404,6 +416,24 @@ void GVMainWindow::drawPartiallyFilledSquare(
       square,
       m_linesBrush);
   }
+}
+
+
+void GVMainWindow::drawLine(
+  D2D1_MATRIX_3X2_F transform,
+  float x1,
+  float y1,
+  float x2,
+  float y2)
+{
+  m_renderTarget->SetTransform(transform);
+
+  m_renderTarget->DrawLine(
+    D2D1::Point2F(x1, y1),
+    D2D1::Point2F(x2, y2),
+    m_linesBrush,
+    3.0,                     // strokeWidth,
+    m_strokeStyleFixedThickness);      // strokeStyle
 }
 
 
@@ -474,6 +504,61 @@ void GVMainWindow::drawShoulderButtons(
   // Trigger.
   drawPartiallyFilledSquare(focusArea(0.0, 0.0, 1.0, 0.7) * transform,
     fillAmount);
+}
+
+
+void GVMainWindow::drawStick(
+  D2D1_MATRIX_3X2_F transform,
+  bool leftSide)
+{
+  // Outline.
+  drawCircle(transform, false /*fill*/);
+
+  // Raw stick position in [-32768,32767], positive being rightward.
+  float rawX = (leftSide? m_controllerState.Gamepad.sThumbLX :
+                          m_controllerState.Gamepad.sThumbRX);
+
+  // Raw stick position in [-32768,32767], positive being upward.
+  float rawY = (leftSide? m_controllerState.Gamepad.sThumbLY :
+                          m_controllerState.Gamepad.sThumbRY);
+
+  // Dead zone value that MS recommends.
+  float deadZone = (leftSide? XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE :
+                              XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+
+  // Magnitude of deflection in the raw units.
+  float magnitude = std::sqrt(rawX*rawX + rawY*rawY);
+
+  if (magnitude > deadZone) {
+    // Truncate anything outside the circle.
+    if (magnitude > 32767) {
+      magnitude = 32767;
+    }
+
+    // Remove the dead zone contribution.
+    magnitude -= deadZone;
+
+    // Scale what remains.
+    magnitude = magnitude / (32767 - deadZone);
+
+    // Deflection angle.  Flip the Y coordinate here to account for the
+    // raw units having the oppositely oriented vertical axis.
+    float angleRadians = std::atan2(-rawY, rawX);
+
+    // Deflection distances in [-1,1].
+    float deflectX = magnitude * std::cos(angleRadians);
+    float deflectY = magnitude * std::sin(angleRadians);
+
+    // Where to draw the end of the stick.
+    float spotX = 0.5 + deflectX * 0.3;
+    float spotY = 0.5 + deflectY * 0.3;
+
+    // Filled circle representing the grippy part.
+    drawCircleAt(transform, spotX, spotY, 0.1, true /*fill*/);
+
+    // Line back to the center representing the shaft.
+    drawLine(transform, 0.5, 0.5, spotX, spotY);
+  }
 }
 
 

@@ -95,6 +95,14 @@ public:      // methods
   // Draw a centered circle mostly filling the box.
   void drawCircle(D2D1_MATRIX_3X2_F transform, bool fill);
 
+  // Draw a circle centered at (x,y) with radius (r).
+  void drawCircleAt(
+    D2D1_MATRIX_3X2_F transform,
+    float x,
+    float y,
+    float r,
+    bool fill);
+
   // Draw a square in the box.
   void drawSquare(D2D1_MATRIX_3X2_F transform, bool fill);
 
@@ -102,6 +110,14 @@ public:      // methods
   void drawPartiallyFilledSquare(
     D2D1_MATRIX_3X2_F transform,
     float fillAmount);
+
+  // Draw a line from (x1,y1) to (x2,y2).
+  void drawLine(
+    D2D1_MATRIX_3X2_F transform,
+    float x1,
+    float y1,
+    float x2,
+    float y2);
 
   // Draw the round face buttons.
   void drawRoundButtons(D2D1_MATRIX_3X2_F transform);
@@ -111,6 +127,9 @@ public:      // methods
 
   // Draw the left or right shoulder button and trigger.
   void drawShoulderButtons(D2D1_MATRIX_3X2_F transform, bool leftSide);
+
+  // Draw one of the sticks.
+  void drawStick(D2D1_MATRIX_3X2_F transform, bool leftSide);
 
   // Cause a repaint event that will redraw the entire window.
   void invalidateAllPixels();
