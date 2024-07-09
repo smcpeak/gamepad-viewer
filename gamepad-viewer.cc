@@ -89,7 +89,7 @@ void GVMainWindow::createDeviceIndependentResources()
     DWRITE_FONT_WEIGHT_NORMAL,         // fontWeight
     DWRITE_FONT_STYLE_NORMAL,          // fontStyle
     DWRITE_FONT_STRETCH_NORMAL,        // fontStretch
-    20.0f,                             // fontSize
+    12.0f,                             // fontSize
     L"",                               // localeName
     &m_textFormat                      // textFormat
   );
@@ -308,7 +308,7 @@ void GVMainWindow::drawControllerState()
     s.data(),
     s.size(),
     m_textFormat,
-    D2D1::RectF(100, 100, renderTargetSize.width, renderTargetSize.height),
+    D2D1::RectF(150, 10, renderTargetSize.width, renderTargetSize.height),
     m_textBrush);
 
   if (!( renderTargetSize.width > 0 && renderTargetSize.height > 0 )) {
@@ -327,8 +327,11 @@ void GVMainWindow::drawControllerState()
   // And another in the lower-right, filled.
   drawCircle(focusArea(0.5, 0.5, 1.0, 1.0) * baseTransform, true);
 
-  // Draw the round buttoms.
-  drawRoundButtons(focusArea(0.70, 0.25, 1, 0.55) * baseTransform);
+  // Draw the round buttons.
+  drawRoundButtons(focusArea(0.70, 0.25, 1.0, 0.55) * baseTransform);
+
+  // Draw the dpad.
+  drawDPadButtons(focusArea(0.0, 0.25, 0.3, 0.55) * baseTransform);
 }
 
 
@@ -360,6 +363,34 @@ void GVMainWindow::drawCircle(
 }
 
 
+void GVMainWindow::drawSquare(
+  D2D1_MATRIX_3X2_F transform,
+  bool fill)
+{
+  m_renderTarget->SetTransform(transform);
+
+  D2D1_RECT_F square;
+  square.left = 0.1;
+  square.top = 0.1;
+  square.right = 0.9;
+  square.bottom = 0.9;
+
+  // Draw the outline always since the stroke width means the outer
+  // edge is a bit larger than the filled ellipse.
+  m_renderTarget->DrawRectangle(
+    square,
+    m_linesBrush,
+    3.0,                               // strokeWidth in pixels
+    m_strokeStyleFixedThickness);      // strokeStyle
+
+  if (fill) {
+    m_renderTarget->FillRectangle(
+      square,
+      m_linesBrush);
+  }
+}
+
+
 void GVMainWindow::drawRoundButtons(
   D2D1_MATRIX_3X2_F transform)
 {
@@ -375,6 +406,30 @@ void GVMainWindow::drawRoundButtons(
 
   for (int i=0; i < 4; ++i) {
     drawCircle(focusArea(0.3, 0, 0.7, 0.4) * transform,
+      buttons & masks[i]);
+
+    // Rotate the transform 90 degrees around the center.
+    transform =
+      D2D1::Matrix3x2F::Rotation(90, D2D1::Point2F(0.5, 0.5)) * transform;
+  }
+}
+
+
+void GVMainWindow::drawDPadButtons(
+  D2D1_MATRIX_3X2_F transform)
+{
+  WORD buttons = m_controllerState.Gamepad.wButtons;
+
+  // Button masks, starting at top, then going clockwise.
+  WORD masks[4] = {
+    XINPUT_GAMEPAD_DPAD_UP,
+    XINPUT_GAMEPAD_DPAD_RIGHT,
+    XINPUT_GAMEPAD_DPAD_DOWN,
+    XINPUT_GAMEPAD_DPAD_LEFT,
+  };
+
+  for (int i=0; i < 4; ++i) {
+    drawSquare(focusArea(0.3, 0, 0.7, 0.4) * transform,
       buttons & masks[i]);
 
     // Rotate the transform 90 degrees around the center.
