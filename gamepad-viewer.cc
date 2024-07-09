@@ -21,10 +21,15 @@
 //
 //   2: Information about messages, etc., of a moderate volume.
 //
+// The default value is not used, as `wWinMain` overwrites it.
+//
 int g_tracingLevel = 1;
 
 
 // True to use the transparency effects.
+//
+// The default value is not used, as `wWinMain` overwrites it.
+//
 bool g_useTransparency = true;
 
 
@@ -36,6 +41,9 @@ bool g_useTransparency = true;
 
 #define TRACE1(msg) TRACE(1, msg)
 #define TRACE2(msg) TRACE(2, msg)
+
+// Add the value of `expr` to a chain of outputs using `<<`.
+#define TRVAL(expr) L" " WIDE_STRINGIZE(expr) L"=" << (expr)
 
 
 D2D1_SIZE_U GVMainWindow::getClientRectSizeU() const
@@ -65,40 +73,27 @@ void GVMainWindow::calculateLayout()
 }
 
 
-HRESULT GVMainWindow::createGraphicsResources()
+void GVMainWindow::createGraphicsResources()
 {
-  HRESULT hr = S_OK;
   if (!m_renderTarget) {
     D2D1_SIZE_U size = getClientRectSizeU();
     TRACE2(L"createGraphicsResources: size=(" << size.width <<
            L"x" << size.height << L")");
 
-    hr = m_d2dFactory->CreateHwndRenderTarget(
+    CALL_HR_WINAPI(m_d2dFactory->CreateHwndRenderTarget,
       D2D1::RenderTargetProperties(),
       D2D1::HwndRenderTargetProperties(m_hwnd, size),
       &m_renderTarget);
+    assert(m_renderTarget);
 
-    if (SUCCEEDED(hr)) {
-      assert(m_renderTarget);
+    // Create a yellow brush used to fill the ellipse.
+    D2D1_COLOR_F const color = D2D1::ColorF(1.0f, 1.0f, 0.0f);
+    CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
+      color, &m_brush);
+    assert(m_brush);
 
-      // Create a yellow brush used to fill the ellipse.
-      D2D1_COLOR_F const color = D2D1::ColorF(1.0f, 1.0f, 0.0f);
-      hr = m_renderTarget->CreateSolidColorBrush(color, &m_brush);
-
-      if (SUCCEEDED(hr)) {
-        assert(m_brush);
-        calculateLayout();
-      }
-      else {
-        TRACE1(L"CreateSolidColorBrush failed");
-      }
-    }
-    else {
-      TRACE1(L"CreateHwndRenderTarget failed");
-    }
+    calculateLayout();
   }
-
-  return hr;
 }
 
 
@@ -111,33 +106,36 @@ void GVMainWindow::discardGraphicsResources()
 
 void GVMainWindow::onPaint()
 {
-  HRESULT hr = createGraphicsResources();
-  if (SUCCEEDED(hr)) {
-    PAINTSTRUCT ps;
-    HDC hdc = BeginPaint(m_hwnd, &ps);
-    if (!hdc) {
-      winapiDieNLE(L"BeginPaint");
-    }
-    // The `hdc` is not further used because this function uses D2D
-    // rather than GDI.
+  createGraphicsResources();
 
-    m_renderTarget->BeginDraw();
-
-    // Use a black background, which is then keyed as transparent.
-    m_renderTarget->Clear(D2D1::ColorF(0.0f, 0.0f, 0.0f));
-
-    m_renderTarget->FillEllipse(m_ellipse, m_brush);
-
-    hr = m_renderTarget->EndDraw();
-    if (FAILED(hr) || hr == HRESULT(D2DERR_RECREATE_TARGET)) {
-      TRACE1(L"createGraphicsResources: EndDraw: failed=" <<
-             bool(FAILED(hr)) << L" recreate=" <<
-             bool(hr == HRESULT(D2DERR_RECREATE_TARGET)));
-      discardGraphicsResources();
-    }
-
-    EndPaint(m_hwnd, &ps);
+  PAINTSTRUCT ps;
+  HDC hdc = BeginPaint(m_hwnd, &ps);
+  if (!hdc) {
+    winapiDieNLE(L"BeginPaint");
   }
+  // The `hdc` is not further used because this function uses D2D
+  // rather than GDI.
+
+  m_renderTarget->BeginDraw();
+
+  // Use a black background, which is then keyed as transparent.
+  m_renderTarget->Clear(D2D1::ColorF(0.0f, 0.0f, 0.0f));
+
+  m_renderTarget->FillEllipse(m_ellipse, m_brush);
+
+  HRESULT hr = m_renderTarget->EndDraw();
+  if (hr == HRESULT(D2DERR_RECREATE_TARGET)) {
+    // This is a normal condition (but `FAILED(hr)` is still true) that
+    // means the target device has become invalid.  Dispose of resources
+    // and prepare to re-create them.
+    TRACE2(L"createGraphicsResources: D2DERR_RECREATE_TARGET");
+    discardGraphicsResources();
+  }
+  else if (FAILED(hr)) {
+    winapiDieHR(L"EndDraw", hr);
+  }
+
+  EndPaint(m_hwnd, &ps);
 }
 
 
@@ -159,14 +157,9 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
 {
   switch (uMsg) {
     case WM_CREATE: {
-      HRESULT hr = D2D1CreateFactory(
+      CALL_HR_WINAPI(D2D1CreateFactory,
         D2D1_FACTORY_TYPE_SINGLE_THREADED,
         &m_d2dFactory);
-      if (FAILED(hr)) {
-        // Cause `CreateWindowEx` to fail.
-        TRACE1(L"D2D1CreateFactory failed");
-        return -1;
-      }
 
       if (g_useTransparency) {
         // Arrange to treat purple as transparent.
@@ -267,9 +260,6 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
           }
         }
 
-        #define LSTR(x) L ## x
-        #define TRVAL(expr) L" " LSTR(#expr) L"=" << (expr)
-
         TRACE2(L"WM_NCHITTEST:"
           TRVAL(clientRelPt.x) <<
           TRVAL(clientRelPt.y) <<
@@ -318,7 +308,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   // handle using `GetModuleHandle`.
   assert(hInstance == GetModuleHandle(nullptr));
 
+  // Configure tracing level, with default of 1.
   g_tracingLevel = envIntOr("TRACE", 1);
+
+  // Configure transparency, with default of true.
   g_useTransparency = envIntOr("TRANSPARENT", 1) != 0;
 
   // Create the window.

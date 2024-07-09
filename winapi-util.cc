@@ -7,6 +7,7 @@
 
 #include <cstdlib>                     // std::exit
 #include <iostream>                    // std::wcerr
+#include <sstream>                     // std::wostreamstream
 #include <string>                      // std::wstring
 
 
@@ -59,6 +60,24 @@ std::wstring getLastErrorMessage()
 }
 
 
+std::wstring getHRErrorMessage(HRESULT hr)
+{
+  DWORD facility = HRESULT_FACILITY(hr);
+  DWORD code = HRESULT_CODE(hr);
+
+  if (facility == FACILITY_WIN32) {
+    return getErrorMessage(code);
+  }
+  else {
+    std::wostringstream oss;
+    oss << std::hex;
+    oss << L"HRESULT error: facility=" << facility
+        << L" code=" << code << L".";
+    return oss.str();
+  }
+}
+
+
 void winapiDie(wchar_t const *functionName)
 {
   DWORD code = GetLastError();
@@ -70,6 +89,13 @@ void winapiDie(wchar_t const *functionName)
 void winapiDieNLE(wchar_t const *functionName)
 {
   std::wcerr << functionName << L" failed.\n";
+  std::exit(2);
+}
+
+
+void winapiDieHR(wchar_t const *functionName, HRESULT hr)
+{
+  std::wcerr << functionName << L": " << getHRErrorMessage(hr) << L"\n";
   std::exit(2);
 }
 

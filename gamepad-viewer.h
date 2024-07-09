@@ -42,8 +42,8 @@ public:      // methods
   void calculateLayout();
 
   // If necessary, populate `m_renderTarget`, `m_brush`, and
-  // `m_ellipse`.  Return `S_OK` if the target is ready.
-  HRESULT createGraphicsResources();
+  // `m_ellipse`.
+  void createGraphicsResources();
 
   // Release and nullify `m_renderTarget` and `m_brush`.
   void discardGraphicsResources();

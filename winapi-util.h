@@ -9,6 +9,11 @@
 #include <string>                      // std::wstring
 
 
+// Stringize an argument as a wide string.
+#define WIDE_STRINGIZE_HELPER(x) L ## x
+#define WIDE_STRINGIZE(x) WIDE_STRINGIZE_HELPER(#x)
+
+
 // Get the string corresponding to `errorCode`.  This string is a
 // complete sentence, and does *not* end with a newline.
 std::wstring getErrorMessage(DWORD errorCode);
@@ -16,6 +21,10 @@ std::wstring getErrorMessage(DWORD errorCode);
 
 // Get the string corresponding to `GetLastError()`.
 std::wstring getLastErrorMessage();
+
+
+// Get the string corresponding to `hr`.
+std::wstring getHRErrorMessage(HRESULT hr);
 
 
 // Given that `functionName` has failed, print an error message based on
@@ -27,6 +36,18 @@ void winapiDie(wchar_t const *functionName);
 // `GetLastError()` ("NLE" stands for "No Last Error"), print an error
 // message to stderr and exit(2).
 void winapiDieNLE(wchar_t const *functionName);
+
+
+// `functionName` failed with code `hr`.  Print an error and exit(2).
+void winapiDieHR(wchar_t const *functionName, HRESULT hr);
+
+
+// Call `function`, which returns an `HRESULT`, with the specified
+// arguments.  Die if it fails.
+#define CALL_HR_WINAPI(function, ...)                   \
+  if (HRESULT hr = function(__VA_ARGS__); FAILED(hr)) { \
+    winapiDieHR(WIDE_STRINGIZE(function), hr);          \
+  }
 
 
 // Structure to hold the arguments for a `CreateWindowExW` call.
