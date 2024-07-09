@@ -50,6 +50,12 @@ public:      // data
 public:      // methods
   GVMainWindow();
 
+  // Create the device-independent resources.
+  void createDeviceIndependentResources();
+
+  // Destroy the device-independent resources.
+  void destroyDeviceIndependentResources();
+
   // Return the client rectangle size as a D2D1_SIZE_U.
   D2D1_SIZE_U getClientRectSizeU() const;
 
@@ -74,12 +80,6 @@ public:      // methods
 
   // Handle `WM_KEYDOWN`.  Return true if handled.
   bool onKeyDown(WPARAM wParam, LPARAM lParam);
-
-  // Create the device-independent resources.
-  void createDeviceIndependentResources();
-
-  // Destroy the device-independent resources.
-  void destroyDeviceIndependentResources();
 
   // BaseWindow methods.
   virtual LRESULT handleMessage(

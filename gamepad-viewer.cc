@@ -64,6 +64,47 @@ GVMainWindow::GVMainWindow()
 }
 
 
+void GVMainWindow::createDeviceIndependentResources()
+{
+  CALL_HR_WINAPI(D2D1CreateFactory,
+    D2D1_FACTORY_TYPE_SINGLE_THREADED,
+    &m_d2dFactory);
+  assert(m_d2dFactory);
+
+  CALL_HR_WINAPI(DWriteCreateFactory,
+    DWRITE_FACTORY_TYPE_SHARED,
+    __uuidof(m_writeFactory),
+    reinterpret_cast<IUnknown **>(&m_writeFactory));
+  assert(m_writeFactory);
+
+  CALL_HR_WINAPI(m_writeFactory->CreateTextFormat,
+    L"Verdana",                        // fontFamilyName
+    nullptr,                           // fontCollection
+    DWRITE_FONT_WEIGHT_NORMAL,         // fontWeight
+    DWRITE_FONT_STYLE_NORMAL,          // fontStyle
+    DWRITE_FONT_STRETCH_NORMAL,        // fontStretch
+    50.0f,                             // fontSize
+    L"",                               // localeName
+    &m_textFormat                      // textFormat
+  );
+  assert(m_textFormat);
+
+  // Center text horizontally and vertically.
+  CALL_HR_WINAPI(m_textFormat->SetTextAlignment,
+    DWRITE_TEXT_ALIGNMENT_CENTER);
+  CALL_HR_WINAPI(m_textFormat->SetParagraphAlignment,
+    DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+}
+
+
+void GVMainWindow::destroyDeviceIndependentResources()
+{
+  safeRelease(m_d2dFactory);
+  safeRelease(m_writeFactory);
+  safeRelease(m_textFormat);
+}
+
+
 D2D1_SIZE_U GVMainWindow::getClientRectSizeU() const
 {
   RECT rc;
@@ -221,47 +262,6 @@ bool GVMainWindow::onKeyDown(WPARAM wParam, LPARAM lParam)
 
   // Not handled.
   return false;
-}
-
-
-void GVMainWindow::createDeviceIndependentResources()
-{
-  CALL_HR_WINAPI(D2D1CreateFactory,
-    D2D1_FACTORY_TYPE_SINGLE_THREADED,
-    &m_d2dFactory);
-  assert(m_d2dFactory);
-
-  CALL_HR_WINAPI(DWriteCreateFactory,
-    DWRITE_FACTORY_TYPE_SHARED,
-    __uuidof(m_writeFactory),
-    reinterpret_cast<IUnknown **>(&m_writeFactory));
-  assert(m_writeFactory);
-
-  CALL_HR_WINAPI(m_writeFactory->CreateTextFormat,
-    L"Verdana",                        // fontFamilyName
-    nullptr,                           // fontCollection
-    DWRITE_FONT_WEIGHT_NORMAL,         // fontWeight
-    DWRITE_FONT_STYLE_NORMAL,          // fontStyle
-    DWRITE_FONT_STRETCH_NORMAL,        // fontStretch
-    50.0f,                             // fontSize
-    L"",                               // localeName
-    &m_textFormat                      // textFormat
-  );
-  assert(m_textFormat);
-
-  // Center text horizontally and vertically.
-  CALL_HR_WINAPI(m_textFormat->SetTextAlignment,
-    DWRITE_TEXT_ALIGNMENT_CENTER);
-  CALL_HR_WINAPI(m_textFormat->SetParagraphAlignment,
-    DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-}
-
-
-void GVMainWindow::destroyDeviceIndependentResources()
-{
-  safeRelease(m_d2dFactory);
-  safeRelease(m_writeFactory);
-  safeRelease(m_textFormat);
 }
 
 
