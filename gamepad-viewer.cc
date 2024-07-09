@@ -328,7 +328,7 @@ void GVMainWindow::drawControllerState()
   drawCircle(focusArea(0.5, 0.5, 1.0, 1.0) * baseTransform, true);
 
   // Draw the round buttoms.
-  drawRoundButtons(focusArea(0.75, 0.5, 1, 0.75) * baseTransform);
+  drawRoundButtons(focusArea(0.70, 0.25, 1, 0.55) * baseTransform);
 }
 
 
@@ -365,8 +365,22 @@ void GVMainWindow::drawRoundButtons(
 {
   WORD buttons = m_controllerState.Gamepad.wButtons;
 
-  drawCircle(focusArea(0.4, 0, 0.6, 0.2) * transform,
-    buttons & XINPUT_GAMEPAD_Y);
+  // Button masks, starting at top, then going clockwise.
+  WORD masks[4] = {
+    XINPUT_GAMEPAD_Y,        // Top, PS triangle
+    XINPUT_GAMEPAD_B,        // Right, PS circle
+    XINPUT_GAMEPAD_A,        // Bottom, PS X
+    XINPUT_GAMEPAD_X,        // Left, PS square
+  };
+
+  for (int i=0; i < 4; ++i) {
+    drawCircle(focusArea(0.3, 0, 0.7, 0.4) * transform,
+      buttons & masks[i]);
+
+    // Rotate the transform 90 degrees around the center.
+    transform =
+      D2D1::Matrix3x2F::Rotation(90, D2D1::Point2F(0.5, 0.5)) * transform;
+  }
 }
 
 
