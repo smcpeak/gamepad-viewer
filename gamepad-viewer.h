@@ -27,12 +27,16 @@ public:      // data
   // Shape of ellipse to draw.
   D2D1_ELLIPSE m_ellipse;
 
+  // Clockwise rotation to apply to the drawn ellipse, in degrees.
+  int m_rotDegrees;
+
 public:      // methods
   GVMainWindow()
     : m_d2dFactory(nullptr),
       m_renderTarget(nullptr),
       m_brush(nullptr),
-      m_ellipse()
+      m_ellipse(),
+      m_rotDegrees(0)
   {}
 
   // Return the client rectangle size as a D2D1_SIZE_U.
@@ -51,8 +55,14 @@ public:      // methods
   // Handle `WM_PAINT`.
   void onPaint();
 
+  // Cause a repaint event that will redraw the entire window.
+  void invalidateAllPixels();
+
   // Handle `WM_SIZE`.
   void onResize();
+
+  // Handle `WM_KEYDOWN`.  Return true if handled.
+  bool onKeyDown(WPARAM wParam, LPARAM lParam);
 
   // BaseWindow methods.
   virtual LRESULT handleMessage(

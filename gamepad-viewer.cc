@@ -121,6 +121,10 @@ void GVMainWindow::onPaint()
   // Use a black background, which is then keyed as transparent.
   m_renderTarget->Clear(D2D1::ColorF(0.0f, 0.0f, 0.0f));
 
+  // Rotate the ellipse.
+  m_renderTarget->SetTransform(
+    D2D1::Matrix3x2F::Rotation(m_rotDegrees, m_ellipse.point));
+
   m_renderTarget->FillEllipse(m_ellipse, m_brush);
 
   HRESULT hr = m_renderTarget->EndDraw();
@@ -147,8 +151,39 @@ void GVMainWindow::onResize()
 
     // Cause a repaint event for the entire window, not just any newly
     // exposed part, because the size affects everything displayed.
-    InvalidateRect(m_hwnd, nullptr /*lpRect*/, false /*bErase*/);
+    invalidateAllPixels();
   }
+}
+
+
+void GVMainWindow::invalidateAllPixels()
+{
+  InvalidateRect(m_hwnd, nullptr /*lpRect*/, false /*bErase*/);
+}
+
+
+bool GVMainWindow::onKeyDown(WPARAM wParam, LPARAM lParam)
+{
+  switch (wParam) {
+    case 'Q':
+      // Q to quit.
+      TRACE2(L"Saw Q keypress.");
+      PostMessage(m_hwnd, WM_CLOSE, 0, 0);
+      return true;
+
+    case VK_LEFT:
+      m_rotDegrees -= 10;
+      invalidateAllPixels();
+      return true;
+
+    case VK_RIGHT:
+      m_rotDegrees += 10;
+      invalidateAllPixels();
+      return true;
+  }
+
+  // Not handled.
+  return false;
 }
 
 
@@ -273,15 +308,12 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
       return hit;
     }
 
-    case WM_KEYDOWN: {
-      if (wParam == 'Q') {
-        // Q to quit.
-        TRACE2(L"Saw Q keypress.");
-        PostMessage(m_hwnd, WM_CLOSE, 0, 0);
+    case WM_KEYDOWN:
+      if (onKeyDown(wParam, lParam)) {
+        // Handled.
         return 0;
       }
       break;
-    }
   }
 
   return BaseWindow::handleMessage(uMsg, wParam, lParam);
