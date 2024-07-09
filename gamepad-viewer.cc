@@ -182,6 +182,19 @@ void GVMainWindow::discardGraphicsResources()
 }
 
 
+void GVMainWindow::onTimer(WPARAM wParam)
+{
+  DWORD prevPN = m_controllerState.dwPacketNumber;
+
+  pollControllerState();
+
+  if (prevPN != m_controllerState.dwPacketNumber) {
+    // Redraw to show the new state.
+    invalidateAllPixels();
+  }
+}
+
+
 void GVMainWindow::onPaint()
 {
   createGraphicsResources();
@@ -204,9 +217,6 @@ void GVMainWindow::onPaint()
     D2D1::Matrix3x2F::Rotation(m_rotDegrees, m_ellipse.point));
 
   m_renderTarget->FillEllipse(m_ellipse, m_yellowBrush);
-
-  // For now, poll every time we draw.
-  pollControllerState();
 
   drawControllerState();
 
@@ -331,15 +341,29 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
         }
       }
 
+      // Create a timer for polling the controller.
+      UINT_PTR id = SetTimer(m_hwnd, 1, 16 /*ms*/, nullptr /*proc*/);
+      if (!id) {
+        winapiDie(L"SetTimer");
+      }
+      assert(id == 1);
+
       createDeviceIndependentResources();
       return 0;
     }
 
     case WM_DESTROY:
       TRACE2(L"received WM_DESTROY");
+      if (!KillTimer(m_hwnd, 1)) {
+        winapiDie(L"KillTimer");
+      }
       discardGraphicsResources();
       destroyDeviceIndependentResources();
       PostQuitMessage(0);
+      return 0;
+
+    case WM_TIMER:
+      onTimer(wParam);
       return 0;
 
     case WM_PAINT:

@@ -75,6 +75,9 @@ public:      // methods
   // Release and nullify `m_renderTarget` and `m_brush`.
   void discardGraphicsResources();
 
+  // Handle `WM_TIMER`.
+  void onTimer(WPARAM wParam);
+
   // Handle `WM_PAINT`.
   void onPaint();
 
