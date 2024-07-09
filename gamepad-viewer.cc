@@ -125,8 +125,8 @@ void GVMainWindow::onPaint()
 
     m_renderTarget->BeginDraw();
 
-    // Use a purple background, which is then keyed as transparent.
-    m_renderTarget->Clear(D2D1::ColorF(1.0f, 0.0f, 1.0f));
+    // Use a black background, which is then keyed as transparent.
+    m_renderTarget->Clear(D2D1::ColorF(0.0f, 0.0f, 0.0f));
 
     m_renderTarget->FillEllipse(m_ellipse, m_brush);
 
@@ -189,7 +189,7 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
         //
         BOOL ok = SetLayeredWindowAttributes(
           m_hwnd,
-          RGB(255,0,255),      // crKey, the transparent color.
+          RGB(0,0,0),          // crKey, the transparent color.
           255,                 // bAlpha (ignored here I think).
           LWA_COLORKEY);       // dwFlags
         if (!ok) {
