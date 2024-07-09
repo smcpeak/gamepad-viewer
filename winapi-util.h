@@ -72,4 +72,15 @@ public:      // methods
 };
 
 
+// If `ptr` is not null, call its `Release` method and nullify it.
+template <typename T>
+void safeRelease(T *&ptr)
+{
+  if (ptr) {
+    ptr->Release();
+    ptr = nullptr;
+  }
+}
+
+
 #endif // WINAPI_UTIL_H

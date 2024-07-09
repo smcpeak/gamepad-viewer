@@ -11,9 +11,15 @@ CXXFLAGS += -Wall
 CXXFLAGS += -Werror
 CXXFLAGS += -DUNICODE
 
-LDFLAGS := -g -Wall -municode
+LDFLAGS :=
+LDFLAGS += -g
+LDFLAGS += -Wall
+LDFLAGS += -municode
 
 LIBS :=
+
+# Direct2D.
+LIBS += -ld2d1
 
 
 OBJS :=
