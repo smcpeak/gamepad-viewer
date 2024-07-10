@@ -1,4 +1,77 @@
-# License
+## Gamepad Viewer
+
+This repo has the code for a simple Windows gamepad viewer program.
+
+When sitting on a white background, it looks like this:
+
+![Screenshot](doc/screenshot.png)
+
+However, by default the UI is mostly transparent, with only the
+(by default) blue-green lines visible.  It is intended to be made
+topmost (with a menu option or by pressing T) and then sit on top of
+a game window, so in actual use the background will be the game.
+
+
+## Features
+
+The main features are:
+
+* Shows the state of all of the controls exposed via the
+  [XInput](https://learn.microsoft.com/en-us/windows/win32/xinput/programming-guide)
+  API: two directional sticks, two analog triggers, four dpad buttons,
+  four round face buttons, select, start, shoulder bumpers, and
+  stick-down buttons.
+
+* Optionally shows all of the inputs in their raw numeric form, which
+  can be useful for tuning dead zones.
+
+* Transparent UI can sit on top of a game screen, showing controller
+  state without obscuring too much of the view.
+
+* Resizable.
+
+* Configurable colors.
+
+* Built-in top-most window functionality.
+
+
+## Build instructions
+
+The `Makefile` runs on
+[Cygwin](https://www.cygwin.com/) and nominally invokes the
+[WinLibs MinGW compiler](https://winlibs.com/).  In that configuration,
+just run:
+
+```
+$ make
+```
+
+But the code is just a handful of `.cc` files linking with standard
+Windows libraries so it should be easy to build with any C++ compiler.
+
+
+## User interface
+
+Run the executable and the window will pop up.
+
+Left-click and drag any opaque part to move the window.
+
+Right-click to open the context menu, allowing customization.  The
+context menu also shows the key bindings.
+
+
+## Limitations
+
+Major current limitations:
+
+* It only shows the first connected gamepad.
+
+* Configuration is not saved across invocations.
+
+See [todo.txt](doc/todo.txt) for minor issues, enhancements, etc.
+
+
+## License
 
 The MIT License
 
