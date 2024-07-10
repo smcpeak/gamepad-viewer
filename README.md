@@ -34,6 +34,9 @@ The main features are:
 
 * Built-in top-most window functionality.
 
+* The trigger and thumb sticks have configurable dead zones, by default
+  tuned to approximately match what Elden Ring uses.
+
 
 ## Build instructions
 

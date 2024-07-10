@@ -17,6 +17,61 @@
 using json::JSON;
 
 
+// Load `field` from `key`.  `expr` is an expression that refers to
+// `data`, the JSON object at `key`.
+#define LOAD_FIELD(key, field, expr) \
+  if (obj.hasKey(key)) {             \
+    JSON const &data = obj.at(key);  \
+    field = (expr);                  \
+  }
+
+// For when the key and field names are related in the usual way.
+#define LOAD_KEY_FIELD(name, expr) \
+  LOAD_FIELD(#name, m_##name, expr)
+
+
+// Save a field where converting to JSON only requires invoking one of
+// the `JSON` constructors.
+#define SAVE_KEY_FIELD_CTOR(name) \
+  obj[#name] = JSON(m_##name) /* user ; */
+
+
+// ----------------------- AnalogThresholdConfig -----------------------
+AnalogThresholdConfig::AnalogThresholdConfig()
+    // These defaults are tuned for Elden Ring.
+  : m_triggerDeadZone(128),
+    m_rightStickDeadZone(6600),
+    m_leftStickWalkThreshold(16000),
+    m_leftStickRunThreshold(25500),
+    m_leftStickSprintThreshold(30000)
+{}
+
+
+void AnalogThresholdConfig::loadFromJSON(JSON const &obj)
+{
+  LOAD_KEY_FIELD(triggerDeadZone, data.ToInt());
+  LOAD_KEY_FIELD(rightStickDeadZone, data.ToInt());
+  LOAD_KEY_FIELD(leftStickWalkThreshold, data.ToInt());
+  LOAD_KEY_FIELD(leftStickRunThreshold, data.ToInt());
+  LOAD_KEY_FIELD(leftStickSprintThreshold, data.ToInt());
+}
+
+
+JSON AnalogThresholdConfig::saveToJSON() const
+{
+  JSON obj = json::Object();
+
+  SAVE_KEY_FIELD_CTOR(triggerDeadZone);
+  SAVE_KEY_FIELD_CTOR(rightStickDeadZone);
+  SAVE_KEY_FIELD_CTOR(leftStickWalkThreshold);
+  SAVE_KEY_FIELD_CTOR(leftStickRunThreshold);
+  SAVE_KEY_FIELD_CTOR(leftStickSprintThreshold);
+
+  return obj;
+}
+
+
+// ----------------------------- GPVConfig -----------------------------
 GPVConfig::GPVConfig()
   : m_linesColorref(RGB(118, 235, 220)),         // Pastel cyan.
     m_highlightColorref(RGB(53, 53, 242)),       // Dark blue, almost purple.
@@ -27,7 +82,8 @@ GPVConfig::GPVConfig()
     m_windowWidth(400),
     m_windowHeight(400),
     m_pollingIntervalMS(16),                     // ~60 FPS.
-    m_controllerID(0)                            // First controller.
+    m_controllerID(0),                           // First controller.
+    m_analogThresholds()
 {}
 
 
@@ -57,6 +113,47 @@ static COLORREF COLORREF_from_JSON(JSON arr)
 }
 
 
+void GPVConfig::loadFromJSON(JSON const &obj)
+{
+  LOAD_FIELD("linesColorRGB", m_linesColorref, COLORREF_from_JSON(data));
+  LOAD_FIELD("highlightColorRGB", m_highlightColorref, COLORREF_from_JSON(data));
+  LOAD_KEY_FIELD(showText, data.ToBool());
+  LOAD_KEY_FIELD(topmostWindow, data.ToBool());
+  LOAD_KEY_FIELD(windowLeft, data.ToInt());
+  LOAD_KEY_FIELD(windowTop, data.ToInt());
+  LOAD_KEY_FIELD(windowWidth, data.ToInt());
+  LOAD_KEY_FIELD(windowHeight, data.ToInt());
+  LOAD_KEY_FIELD(pollingIntervalMS, data.ToInt());
+  LOAD_KEY_FIELD(controllerID, data.ToInt());
+
+  if (obj.hasKey("analogThresholds")) {
+    m_analogThresholds.loadFromJSON(obj.at("analogThresholds"));
+  }
+}
+
+
+JSON GPVConfig::saveToJSON() const
+{
+  JSON obj = json::Object();
+
+  obj["linesColorRGB"] = COLORREF_to_JSON(m_linesColorref);
+  obj["highlightColorRGB"] = COLORREF_to_JSON(m_highlightColorref);
+
+  SAVE_KEY_FIELD_CTOR(showText);
+  SAVE_KEY_FIELD_CTOR(topmostWindow);
+  SAVE_KEY_FIELD_CTOR(windowLeft);
+  SAVE_KEY_FIELD_CTOR(windowTop);
+  SAVE_KEY_FIELD_CTOR(windowWidth);
+  SAVE_KEY_FIELD_CTOR(windowHeight);
+  SAVE_KEY_FIELD_CTOR(pollingIntervalMS);
+  SAVE_KEY_FIELD_CTOR(controllerID);
+
+  obj["analogThresholds"] = m_analogThresholds.saveToJSON();
+
+  return obj;
+}
+
+
 std::string GPVConfig::loadFromFile(std::string const &fname)
 {
   std::ifstream in(fname, std::ios::binary);
@@ -70,31 +167,7 @@ std::string GPVConfig::loadFromFile(std::string const &fname)
   // This merely reports errors to stderr...
   JSON obj = JSON::Load(oss.str());
 
-  // Load `field` from `key`.  `expr` is an expression that refers to
-  // `data`, the JSON object at `key`.
-  #define LOAD_FIELD(key, field, expr) \
-    if (obj.hasKey(key)) {             \
-      JSON const &data = obj[key];     \
-      field = (expr);                  \
-    }
-
-  // For when the key and field names are related in the usual way.
-  #define LOAD_KEY_FIELD(name, expr) \
-    LOAD_FIELD(#name, m_##name, expr)
-
-  LOAD_FIELD("linesColorRGB", m_linesColorref, COLORREF_from_JSON(data));
-  LOAD_FIELD("highlightColorRGB", m_highlightColorref, COLORREF_from_JSON(data));
-  LOAD_KEY_FIELD(showText, data.ToBool());
-  LOAD_KEY_FIELD(topmostWindow, data.ToBool());
-  LOAD_KEY_FIELD(windowLeft, data.ToInt());
-  LOAD_KEY_FIELD(windowTop, data.ToInt());
-  LOAD_KEY_FIELD(windowWidth, data.ToInt());
-  LOAD_KEY_FIELD(windowHeight, data.ToInt());
-  LOAD_KEY_FIELD(pollingIntervalMS, data.ToInt());
-  LOAD_KEY_FIELD(controllerID, data.ToInt());
-
-  #undef LOAD_FIELD
-  #undef LOAD_KEY_FIELD
+  loadFromJSON(obj);
 
   return "";
 }
@@ -102,26 +175,7 @@ std::string GPVConfig::loadFromFile(std::string const &fname)
 
 std::string GPVConfig::saveToFile(std::string const &fname) const
 {
-  JSON obj = json::Object();
-
-  obj["linesColorRGB"] = COLORREF_to_JSON(m_linesColorref);
-  obj["highlightColorRGB"] = COLORREF_to_JSON(m_highlightColorref);
-
-  // Save a field where converting to JSON only requires invoking one of
-  // the `JSON` constructors.
-  #define SAVE_KEY_FIELD_CTOR(name) \
-    obj[#name] = JSON(m_##name) /* user ; */
-
-  SAVE_KEY_FIELD_CTOR(showText);
-  SAVE_KEY_FIELD_CTOR(topmostWindow);
-  SAVE_KEY_FIELD_CTOR(windowLeft);
-  SAVE_KEY_FIELD_CTOR(windowTop);
-  SAVE_KEY_FIELD_CTOR(windowWidth);
-  SAVE_KEY_FIELD_CTOR(windowHeight);
-  SAVE_KEY_FIELD_CTOR(pollingIntervalMS);
-  SAVE_KEY_FIELD_CTOR(controllerID);
-
-  #undef SAVE_KEY_FIELD_CTOR
+  JSON obj = saveToJSON();
 
   std::string serialized = obj.dump();
 

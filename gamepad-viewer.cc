@@ -155,36 +155,6 @@ float const c_circleMargin = 0.1;
 float const c_lineWidthPixels = 3.0;
 
 
-// When the trigger is greater than or equal to this value, we regard it
-// as "active".
-//
-// Substitutes for XINPUT_GAMEPAD_TRIGGER_THRESHOLD.
-//
-int const c_triggerDeadZone = 128;
-
-// When either axis of the right stick exceeds this value, it is treated
-// as active.
-//
-// Substitutes for XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE.
-//
-int const c_rightStickDeadZone = 6600;
-
-// When the left stick exceeds the octagon with this as its radius, it
-// is treated as at least walking speed.
-//
-// Substitutes for XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE.
-//
-int const c_leftStickWalkThreshold = 16000;
-
-// When the left stick exceeds a circle with this radius, the character
-// will run when on foot, and Torrent will gallop.
-int const c_leftStickRunThreshold = 25500;
-
-// When the left stick exceeds a circle with this radius, Torrent will
-// maintain his sprint speed.
-int const c_leftStickSprintThreshold = 30000;
-
-
 GVMainWindow::GVMainWindow()
   : m_d2dFactory(nullptr),
     m_writeFactory(nullptr),
@@ -736,7 +706,7 @@ void GVMainWindow::drawShoulderButtons(
   drawPartiallyFilledSquare(
     focusPtHVR(0.5, c_triggerVR, 0.5, c_triggerVR) * transform,
     fillAmount,
-    trigger > c_triggerDeadZone? 1.0 : 0.5);
+    trigger > m_config.m_analogThresholds.m_triggerDeadZone? 1.0 : 0.5);
 }
 
 
@@ -744,6 +714,8 @@ void GVMainWindow::drawStick(
   D2D1_MATRIX_3X2_F transform,
   bool leftSide)
 {
+  AnalogThresholdConfig const &thr = m_config.m_analogThresholds;
+
   // Outline.
   drawCircleAt(transform, 0.5, 0.5, c_stickOutlineR, false /*fill*/);
 
@@ -756,8 +728,8 @@ void GVMainWindow::drawStick(
                           m_controllerState.Gamepad.sThumbRY);
 
   // Dead zone size.  The exact shape depends on `leftSide`.
-  float deadZone = (leftSide? c_leftStickWalkThreshold :
-                              c_rightStickDeadZone);
+  float deadZone = (leftSide? thr.m_leftStickWalkThreshold :
+                              thr.m_rightStickDeadZone);
 
   // Absolute values for easier dead zone calculations.
   float absX = std::abs(rawX);
@@ -775,9 +747,9 @@ void GVMainWindow::drawStick(
 
   // How fast will we run (if this is the left stick)?
   int speed =
-    magnitude > c_leftStickSprintThreshold? 3 :
-    magnitude > c_leftStickRunThreshold?    2 :
-                                            1 ;
+    magnitude > thr.m_leftStickSprintThreshold? 3 :
+    magnitude > thr.m_leftStickRunThreshold?    2 :
+                                                     1 ;
 
   if (beyondDeadZone) {
     // Truncate anything outside the circle.
