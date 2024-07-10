@@ -80,81 +80,6 @@ enum {
 };
 
 
-// Constants used to control the size, shape, and position of the
-// controls in the UI.  I'm thinking to eventually put these into a
-// configuration file; defining them here is a first step.
-//
-// All of these are in [0,1], representing fractional distances of the
-// whole within either the whole UI or a parent button cluster.
-
-// Distance from top to center of face button cluster and center of
-// select/start cluster.
-float const c_faceButtonsY = 0.42;
-
-// Radius of face button clusters.
-float const c_faceButtonsR = 0.15;
-
-// Radius of one of the round face buttons.
-float const c_roundButtonR = 0.20;
-
-// Square radius of one of the dpad buttons.
-float const c_dpadButtonR = 0.15;
-
-// Distance from side to center of shoulder buttons.
-float const c_shoulderButtonsX = 0.15;
-
-// Radius of shoulder button cluster.
-float const c_shoulderButtonsR = 0.125;
-
-// Vertical radius of a bumper button within its shoulder cluster.
-float const c_bumperVR = 0.15;
-
-// Vertical radius of a trigger box within its shoulder cluster.
-float const c_triggerVR = 0.35;
-
-// Radius of each stick display cluster.
-float const c_stickR = 0.25;
-
-// Radius of the always-visible circle around the stick thumb.
-float const c_stickOutlineR = 0.4;
-
-// Maximum distance of the thumb from its center.
-float const c_stickMaxDeflectR = 0.3;
-
-// Radius of the filled circle representing the thumb.
-float const c_stickThumbR = 0.1;
-
-// By how much vertical space are the chevrons separated?
-float const c_chevronSeparation = 0.2;
-
-// Horizontal radius of the chevrons.
-float const c_chevronHR = 0.25;
-
-// Vertical radius of the chevrons.
-float const c_chevronVR = 0.17;
-
-// Horizontal distance from the center line to the sel/start buttons.
-float const c_selStartX = 0.08;
-
-// Horizontal and vertical radii for sel/start.
-float const c_selStartHR = 0.05;
-float const c_selStartVR = 0.03;
-
-// Distance from the top to the central circle.
-float const c_centralCircleY = 0.52;
-
-// Radius of the central circle.
-float const c_centralCircleR = 0.035;
-
-
-// Distance that `drawCircle` and `drawSquare` leave between the edge of
-// the circle and the edge of its nominal area.
-float const c_circleMargin = 0.1;
-
-// Width in pixels of the lines.
-float const c_lineWidthPixels = 3.0;
-
-
 GVMainWindow::GVMainWindow()
   : m_d2dFactory(nullptr),
     m_writeFactory(nullptr),
@@ -464,6 +389,8 @@ void GVMainWindow::drawControllerState()
     return;
   }
 
+  LayoutParams const &lp = m_config.m_layoutParams;
+
   // Create a coordinate system where the upper-left is (0,0) and the
   // lower-right is (1,1).
   D2D1_MATRIX_3X2_F baseTransform =
@@ -471,38 +398,38 @@ void GVMainWindow::drawControllerState()
 
   // Draw the round buttons.
   drawRoundButtons(
-    focusPtR(1.0 - c_faceButtonsR, c_faceButtonsY, c_faceButtonsR) *
+    focusPtR(1.0 - lp.m_faceButtonsR, lp.m_faceButtonsY, lp.m_faceButtonsR) *
     baseTransform);
 
   // Draw the dpad.
   drawDPadButtons(
-    focusPtR(c_faceButtonsR, c_faceButtonsY, c_faceButtonsR) *
+    focusPtR(lp.m_faceButtonsR, lp.m_faceButtonsY, lp.m_faceButtonsR) *
     baseTransform);
 
   // Draw the shoulder buttons.
   drawShoulderButtons(
-    focusPtR(c_shoulderButtonsX, c_shoulderButtonsR, c_shoulderButtonsR) * baseTransform,
+    focusPtR(lp.m_shoulderButtonsX, lp.m_shoulderButtonsR, lp.m_shoulderButtonsR) * baseTransform,
     true /*left*/);
   drawShoulderButtons(
-    focusPtR(1.0 - c_shoulderButtonsX, c_shoulderButtonsR, c_shoulderButtonsR) * baseTransform,
+    focusPtR(1.0 - lp.m_shoulderButtonsX, lp.m_shoulderButtonsR, lp.m_shoulderButtonsR) * baseTransform,
     false /*left*/);
 
   // Draw the sticks.
   drawStick(
-    focusPtR(c_stickR, 1.0 - c_stickR, c_stickR) * baseTransform,
+    focusPtR(lp.m_stickR, 1.0 - lp.m_stickR, lp.m_stickR) * baseTransform,
     true /*left*/);
   drawStick(
-    focusPtR(1.0 - c_stickR, 1.0 - c_stickR, c_stickR) * baseTransform,
+    focusPtR(1.0 - lp.m_stickR, 1.0 - lp.m_stickR, lp.m_stickR) * baseTransform,
     false /*left*/);
 
   // Draw the select and start buttons.
   drawSelStartButton(
-    focusPtHVR(0.5 - c_selStartX, c_faceButtonsY,
-               c_selStartHR,      c_selStartVR)   * baseTransform,
+    focusPtHVR(0.5 - lp.m_selStartX, lp.m_faceButtonsY,
+               lp.m_selStartHR,      lp.m_selStartVR)   * baseTransform,
     true /*left*/);
   drawSelStartButton(
-    focusPtHVR(0.5 + c_selStartX, c_faceButtonsY,
-               c_selStartHR,      c_selStartVR)   * baseTransform,
+    focusPtHVR(0.5 + lp.m_selStartX, lp.m_faceButtonsY,
+               lp.m_selStartHR,      lp.m_selStartVR)   * baseTransform,
     false /*left*/);
 
   // Draw a central circle that could be considered to mimic the
@@ -510,7 +437,7 @@ void GVMainWindow::drawControllerState()
   // place for the mouse to be clicked since the rest of the UI consists
   // of thin lines that are hard to click.
   drawCentralCircle(
-    focusPtR(0.5, c_centralCircleY, c_centralCircleR) * baseTransform);
+    focusPtR(0.5, lp.m_centralCircleY, lp.m_centralCircleR) * baseTransform);
 }
 
 
@@ -518,20 +445,22 @@ void GVMainWindow::drawCircle(
   D2D1_MATRIX_3X2_F transform,
   bool fill)
 {
+  LayoutParams const &lp = m_config.m_layoutParams;
+
   m_renderTarget->SetTransform(transform);
 
   D2D1_ELLIPSE circle;
   circle.point.x = 0.5;
   circle.point.y = 0.5;
-  circle.radiusX = 0.5 - c_circleMargin;
-  circle.radiusY = 0.5 - c_circleMargin;
+  circle.radiusX = 0.5 - lp.m_circleMargin;
+  circle.radiusY = 0.5 - lp.m_circleMargin;
 
   // Draw the outline always since the stroke width means the outer
   // edge is a bit larger than the filled ellipse.
   m_renderTarget->DrawEllipse(
     circle,
     m_linesBrush,
-    c_lineWidthPixels,                 // strokeWidth in pixels
+    lp.m_lineWidthPixels,              // strokeWidth in pixels
     m_strokeStyleFixedThickness);      // strokeStyle
 
   if (fill) {
@@ -566,20 +495,22 @@ void GVMainWindow::drawPartiallyFilledSquare(
   float fillAmount,
   float fillHR)
 {
+  LayoutParams const &lp = m_config.m_layoutParams;
+
   m_renderTarget->SetTransform(transform);
 
   D2D1_RECT_F square;
-  square.left = c_circleMargin;
-  square.top = c_circleMargin;
-  square.right = 1.0 - c_circleMargin;
-  square.bottom = 1.0 - c_circleMargin;
+  square.left = lp.m_circleMargin;
+  square.top = lp.m_circleMargin;
+  square.right = 1.0 - lp.m_circleMargin;
+  square.bottom = 1.0 - lp.m_circleMargin;
 
   // Draw the outline always since the stroke width means the outer
   // edge is a bit larger than the filled ellipse.
   m_renderTarget->DrawRectangle(
     square,
     m_linesBrush,
-    c_lineWidthPixels,                 // strokeWidth
+    lp.m_lineWidthPixels,              // strokeWidth
     m_strokeStyleFixedThickness);      // strokeStyle
 
   if (fillAmount > 0) {
@@ -606,13 +537,15 @@ void GVMainWindow::drawLine(
   float y2,
   bool highlight)
 {
+  LayoutParams const &lp = m_config.m_layoutParams;
+
   m_renderTarget->SetTransform(transform);
 
   m_renderTarget->DrawLine(
     D2D1::Point2F(x1, y1),
     D2D1::Point2F(x2, y2),
     highlight? m_highlightBrush : m_linesBrush,
-    c_lineWidthPixels,                 // strokeWidth,
+    lp.m_lineWidthPixels,               // strokeWidth,
     m_strokeStyleFixedThickness);      // strokeStyle
 }
 
@@ -637,6 +570,8 @@ static D2D1_MATRIX_3X2_F rotateAroundCenterRad(float radians)
 void GVMainWindow::drawRoundButtons(
   D2D1_MATRIX_3X2_F transform)
 {
+  LayoutParams const &lp = m_config.m_layoutParams;
+
   WORD buttons = m_controllerState.Gamepad.wButtons;
 
   // Button masks, starting at top, then going clockwise.
@@ -648,7 +583,7 @@ void GVMainWindow::drawRoundButtons(
   };
 
   for (int i=0; i < 4; ++i) {
-    drawCircle(focusPtR(0.5, c_roundButtonR, c_roundButtonR) * transform,
+    drawCircle(focusPtR(0.5, lp.m_roundButtonR, lp.m_roundButtonR) * transform,
       buttons & masks[i]);
 
     // Rotate the transform 90 degrees around the center.
@@ -660,6 +595,8 @@ void GVMainWindow::drawRoundButtons(
 void GVMainWindow::drawDPadButtons(
   D2D1_MATRIX_3X2_F transform)
 {
+  LayoutParams const &lp = m_config.m_layoutParams;
+
   WORD buttons = m_controllerState.Gamepad.wButtons;
 
   // Button masks, starting at top, then going clockwise.
@@ -671,7 +608,7 @@ void GVMainWindow::drawDPadButtons(
   };
 
   for (int i=0; i < 4; ++i) {
-    drawSquare(focusPtR(0.5, c_dpadButtonR, c_dpadButtonR) * transform,
+    drawSquare(focusPtR(0.5, lp.m_dpadButtonR, lp.m_dpadButtonR) * transform,
       buttons & masks[i]);
 
     // Rotate the transform 90 degrees around the center.
@@ -684,13 +621,15 @@ void GVMainWindow::drawShoulderButtons(
   D2D1_MATRIX_3X2_F transform,
   bool leftSide)
 {
+  LayoutParams const &lp = m_config.m_layoutParams;
+
   WORD buttons = m_controllerState.Gamepad.wButtons;
   WORD mask = (leftSide? XINPUT_GAMEPAD_LEFT_SHOULDER :
                          XINPUT_GAMEPAD_RIGHT_SHOULDER);
 
   // Bumper.
   drawSquare(
-    focusPtHVR(0.5, 1.0 - c_bumperVR, 0.5, c_bumperVR) * transform,
+    focusPtHVR(0.5, 1.0 - lp.m_bumperVR, 0.5, lp.m_bumperVR) * transform,
     buttons & mask);
 
   BYTE trigger = (leftSide? m_controllerState.Gamepad.bLeftTrigger :
@@ -704,7 +643,7 @@ void GVMainWindow::drawShoulderButtons(
   // in order to indicate that the game may not regiser it.
   //
   drawPartiallyFilledSquare(
-    focusPtHVR(0.5, c_triggerVR, 0.5, c_triggerVR) * transform,
+    focusPtHVR(0.5, lp.m_triggerVR, 0.5, lp.m_triggerVR) * transform,
     fillAmount,
     trigger > m_config.m_analogThresholds.m_triggerDeadZone? 1.0 : 0.5);
 }
@@ -714,10 +653,12 @@ void GVMainWindow::drawStick(
   D2D1_MATRIX_3X2_F transform,
   bool leftSide)
 {
+  LayoutParams const &lp = m_config.m_layoutParams;
+
   AnalogThresholdConfig const &thr = m_config.m_analogThresholds;
 
   // Outline.
-  drawCircleAt(transform, 0.5, 0.5, c_stickOutlineR, false /*fill*/);
+  drawCircleAt(transform, 0.5, 0.5, lp.m_stickOutlineR, false /*fill*/);
 
   // Raw stick position in [-32768,32767], positive being rightward.
   float rawX = (leftSide? m_controllerState.Gamepad.sThumbLX :
@@ -775,14 +716,14 @@ void GVMainWindow::drawStick(
     float deflectY = magnitude * std::sin(angleRadians);
 
     // Filled circle representing the grippy part.
-    float spotX = 0.5 + deflectX * c_stickMaxDeflectR;
-    float spotY = 0.5 + deflectY * c_stickMaxDeflectR;
-    drawCircleAt(transform, spotX, spotY, c_stickThumbR, true /*fill*/);
+    float spotX = 0.5 + deflectX * lp.m_stickMaxDeflectR;
+    float spotY = 0.5 + deflectY * lp.m_stickMaxDeflectR;
+    drawCircleAt(transform, spotX, spotY, lp.m_stickThumbR, true /*fill*/);
 
     // Line from center to circle showing the deflection angle, even
     // when the thumb is close to the center.
-    float edgeX = 0.5 + std::cos(angleRadians) * c_stickMaxDeflectR;
-    float edgeY = 0.5 + std::sin(angleRadians) * c_stickMaxDeflectR;
+    float edgeX = 0.5 + std::cos(angleRadians) * lp.m_stickMaxDeflectR;
+    float edgeY = 0.5 + std::sin(angleRadians) * lp.m_stickMaxDeflectR;
     drawLine(transform, 0.5, 0.5, edgeX, edgeY, false /*highlight*/);
 
     if (leftSide) {
@@ -811,8 +752,10 @@ void GVMainWindow::drawSpeedIndicator(
   float angleRadians,
   int speed)
 {
+  LayoutParams const &lp = m_config.m_layoutParams;
+
   // Focus on the thumb circle.
-  transform = focusPtR(spotX, spotY, c_stickThumbR) * transform;
+  transform = focusPtR(spotX, spotY, lp.m_stickThumbR) * transform;
 
   // Turn the indicator to match the stick.
   transform = rotateAroundCenterRad(angleRadians) * transform;
@@ -826,7 +769,7 @@ void GVMainWindow::drawSpeedIndicator(
     // If speed is 3, then [-1,0,1].
     float offset = preliminary - (speed%2 == 0? 0.5 : 0);
 
-    drawChevron(transform, offset * c_chevronSeparation);
+    drawChevron(transform, offset * lp.m_chevronSeparation);
   }
 }
 
@@ -835,11 +778,13 @@ void GVMainWindow::drawChevron(
   D2D1_MATRIX_3X2_F transform,
   float dy)
 {
+  LayoutParams const &lp = m_config.m_layoutParams;
+
   bool const highlight = true;
-  drawLine(transform, 0.5 - c_chevronHR, 0.5 + c_chevronVR + dy,
-                      0.5,               0.5 - c_chevronVR + dy, highlight);
-  drawLine(transform, 0.5,               0.5 - c_chevronVR + dy,
-                      0.5 + c_chevronHR, 0.5 + c_chevronVR + dy, highlight);
+  drawLine(transform, 0.5 - lp.m_chevronHR, 0.5 + lp.m_chevronVR + dy,
+                      0.5,                  0.5 - lp.m_chevronVR + dy, highlight);
+  drawLine(transform, 0.5,                  0.5 - lp.m_chevronVR + dy,
+                      0.5 + lp.m_chevronHR, 0.5 + lp.m_chevronVR + dy, highlight);
 }
 
 

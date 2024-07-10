@@ -54,6 +54,88 @@ public:      // methods
 };
 
 
+// Parameters that control how the controller UI is laid out.
+//
+// All of these are in [0,1], representing fractional distances of the
+// whole within either the whole UI or a parent button cluster.
+//
+class LayoutParams {
+public:      // data
+  // Distance from top to center of face button cluster and center of
+  // select/start cluster.
+  float m_faceButtonsY = 0.42;
+
+  // Radius of face button clusters.
+  float m_faceButtonsR = 0.15;
+
+  // Radius of one of the round face buttons.
+  float m_roundButtonR = 0.20;
+
+  // Square radius of one of the dpad buttons.
+  float m_dpadButtonR = 0.15;
+
+  // Distance from side to center of shoulder buttons.
+  float m_shoulderButtonsX = 0.15;
+
+  // Radius of shoulder button cluster.
+  float m_shoulderButtonsR = 0.125;
+
+  // Vertical radius of a bumper button within its shoulder cluster.
+  float m_bumperVR = 0.15;
+
+  // Vertical radius of a trigger box within its shoulder cluster.
+  float m_triggerVR = 0.35;
+
+  // Radius of each stick display cluster.
+  float m_stickR = 0.25;
+
+  // Radius of the always-visible circle around the stick thumb.
+  float m_stickOutlineR = 0.4;
+
+  // Maximum distance of the thumb from its center.
+  float m_stickMaxDeflectR = 0.3;
+
+  // Radius of the filled circle representing the thumb.
+  float m_stickThumbR = 0.1;
+
+  // By how much vertical space are the chevrons separated?
+  float m_chevronSeparation = 0.2;
+
+  // Horizontal radius of the chevrons.
+  float m_chevronHR = 0.25;
+
+  // Vertical radius of the chevrons.
+  float m_chevronVR = 0.17;
+
+  // Horizontal distance from the center line to the sel/start buttons.
+  float m_selStartX = 0.08;
+
+  // Horizontal and vertical radii for sel/start.
+  float m_selStartHR = 0.05;
+  float m_selStartVR = 0.03;
+
+  // Distance from the top to the central circle.
+  float m_centralCircleY = 0.52;
+
+  // Radius of the central circle.
+  float m_centralCircleR = 0.035;
+
+  // Distance that `drawCircle` and `drawSquare` leave between the edge of
+  // the circle and the edge of its nominal area.
+  float m_circleMargin = 0.1;
+
+  // Width in pixels of the lines.
+  float m_lineWidthPixels = 3.0;
+
+public:      // methods
+  LayoutParams();
+
+  // De/serialize as JSON.
+  void loadFromJSON(json::JSON const &obj);
+  json::JSON saveToJSON() const;
+};
+
+
 // User configuration settings for the gamepad viewer.
 class GPVConfig {
 public:      // data
@@ -84,6 +166,9 @@ public:      // data
 
   // Analog input thresholds.
   AnalogThresholdConfig m_analogThresholds;
+
+  // UI layout.
+  LayoutParams m_layoutParams;
 
 public:      // methods
   // Initialize with defaults.

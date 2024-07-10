@@ -30,6 +30,11 @@ using json::JSON;
   LOAD_FIELD(#name, m_##name, expr)
 
 
+// For when the data type is `float`.
+#define LOAD_KEY_FLOAT_FIELD(name) \
+  LOAD_FIELD(#name, m_##name, data.ToFloat())
+
+
 // Save a field where converting to JSON only requires invoking one of
 // the `JSON` constructors.
 #define SAVE_KEY_FIELD_CTOR(name) \
@@ -71,6 +76,70 @@ JSON AnalogThresholdConfig::saveToJSON() const
 }
 
 
+// --------------------------- LayoutParams ----------------------------
+LayoutParams::LayoutParams()
+  // All of the default values are in the class body.
+{}
+
+
+void LayoutParams::loadFromJSON(JSON const &obj)
+{
+  LOAD_KEY_FLOAT_FIELD(faceButtonsY);
+  LOAD_KEY_FLOAT_FIELD(faceButtonsR);
+  LOAD_KEY_FLOAT_FIELD(roundButtonR);
+  LOAD_KEY_FLOAT_FIELD(dpadButtonR);
+  LOAD_KEY_FLOAT_FIELD(shoulderButtonsX);
+  LOAD_KEY_FLOAT_FIELD(shoulderButtonsR);
+  LOAD_KEY_FLOAT_FIELD(bumperVR);
+  LOAD_KEY_FLOAT_FIELD(triggerVR);
+  LOAD_KEY_FLOAT_FIELD(stickR);
+  LOAD_KEY_FLOAT_FIELD(stickOutlineR);
+  LOAD_KEY_FLOAT_FIELD(stickMaxDeflectR);
+  LOAD_KEY_FLOAT_FIELD(stickThumbR);
+  LOAD_KEY_FLOAT_FIELD(chevronSeparation);
+  LOAD_KEY_FLOAT_FIELD(chevronHR);
+  LOAD_KEY_FLOAT_FIELD(chevronVR);
+  LOAD_KEY_FLOAT_FIELD(selStartX);
+  LOAD_KEY_FLOAT_FIELD(selStartHR);
+  LOAD_KEY_FLOAT_FIELD(selStartVR);
+  LOAD_KEY_FLOAT_FIELD(centralCircleY);
+  LOAD_KEY_FLOAT_FIELD(centralCircleR);
+  LOAD_KEY_FLOAT_FIELD(circleMargin);
+  LOAD_KEY_FLOAT_FIELD(lineWidthPixels);
+}
+
+
+JSON LayoutParams::saveToJSON() const
+{
+  JSON obj = json::Object();
+
+  SAVE_KEY_FIELD_CTOR(faceButtonsY);
+  SAVE_KEY_FIELD_CTOR(faceButtonsR);
+  SAVE_KEY_FIELD_CTOR(roundButtonR);
+  SAVE_KEY_FIELD_CTOR(dpadButtonR);
+  SAVE_KEY_FIELD_CTOR(shoulderButtonsX);
+  SAVE_KEY_FIELD_CTOR(shoulderButtonsR);
+  SAVE_KEY_FIELD_CTOR(bumperVR);
+  SAVE_KEY_FIELD_CTOR(triggerVR);
+  SAVE_KEY_FIELD_CTOR(stickR);
+  SAVE_KEY_FIELD_CTOR(stickOutlineR);
+  SAVE_KEY_FIELD_CTOR(stickMaxDeflectR);
+  SAVE_KEY_FIELD_CTOR(stickThumbR);
+  SAVE_KEY_FIELD_CTOR(chevronSeparation);
+  SAVE_KEY_FIELD_CTOR(chevronHR);
+  SAVE_KEY_FIELD_CTOR(chevronVR);
+  SAVE_KEY_FIELD_CTOR(selStartX);
+  SAVE_KEY_FIELD_CTOR(selStartHR);
+  SAVE_KEY_FIELD_CTOR(selStartVR);
+  SAVE_KEY_FIELD_CTOR(centralCircleY);
+  SAVE_KEY_FIELD_CTOR(centralCircleR);
+  SAVE_KEY_FIELD_CTOR(circleMargin);
+  SAVE_KEY_FIELD_CTOR(lineWidthPixels);
+
+  return obj;
+}
+
+
 // ----------------------------- GPVConfig -----------------------------
 GPVConfig::GPVConfig()
   : m_linesColorref(RGB(118, 235, 220)),         // Pastel cyan.
@@ -83,7 +152,8 @@ GPVConfig::GPVConfig()
     m_windowHeight(400),
     m_pollingIntervalMS(16),                     // ~60 FPS.
     m_controllerID(0),                           // First controller.
-    m_analogThresholds()
+    m_analogThresholds(),
+    m_layoutParams()
 {}
 
 
@@ -129,6 +199,10 @@ void GPVConfig::loadFromJSON(JSON const &obj)
   if (obj.hasKey("analogThresholds")) {
     m_analogThresholds.loadFromJSON(obj.at("analogThresholds"));
   }
+
+  if (obj.hasKey("layoutParams")) {
+    m_layoutParams.loadFromJSON(obj.at("layoutParams"));
+  }
 }
 
 
@@ -149,6 +223,7 @@ JSON GPVConfig::saveToJSON() const
   SAVE_KEY_FIELD_CTOR(controllerID);
 
   obj["analogThresholds"] = m_analogThresholds.saveToJSON();
+  obj["layoutParams"] = m_layoutParams.saveToJSON();
 
   return obj;
 }

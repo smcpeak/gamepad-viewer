@@ -37,6 +37,8 @@ The main features are:
 * The trigger and thumb sticks have configurable dead zones, by default
   tuned to approximately match what Elden Ring uses.
 
+* Customizable layout, albeit by editing a JSON configuration file.
+
 
 ## Build instructions
 
