@@ -180,8 +180,8 @@ GVMainWindow::GVMainWindow()
     m_textFormat(nullptr),
     m_strokeStyleFixedThickness(nullptr),
     m_contextMenu(nullptr),
-    m_linesColorref(RGB(128, 128, 224)),     // Pale blue.
-    m_highlightColorref(RGB(255, 255, 255)), // White.
+    m_linesColorref(RGB(118, 235, 220)),     // Pastel cyan.
+    m_highlightColorref(RGB(53, 53, 242)),   // Dark blue, almost purple.
     m_renderTarget(nullptr),
     m_textBrush(nullptr),
     m_linesBrush(nullptr),
@@ -1273,7 +1273,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     cw.m_dwExStyle = WS_EX_LAYERED;    // For `SetLayeredWindowAttributes`.
   }
   cw.m_lpWindowName = L"Gamepad Viewer";
-  cw.m_x = cw.m_y = 300;
+  cw.m_x = 50;
+  cw.m_y = 300;
   cw.m_nWidth = cw.m_nHeight = 400;
   cw.m_dwStyle = WS_POPUP;
 
