@@ -114,6 +114,12 @@ float const c_selStartX = 0.08;
 float const c_selStartHR = 0.05;
 float const c_selStartVR = 0.03;
 
+// Distance from the top to the central circle.
+float const c_centralCircleY = 0.52;
+
+// Radius of the central circle.
+float const c_centralCircleR = 0.035;
+
 
 // Distance that `drawCircle` and `drawSquare` leave between the edge of
 // the circle and the edge of its nominal area.
@@ -460,6 +466,13 @@ void GVMainWindow::drawControllerState()
     focusPtHVR(0.5 + c_selStartX, c_faceButtonsY,
                c_selStartHR,      c_selStartVR)   * baseTransform,
     false /*left*/);
+
+  // Draw a central circle that could be considered to mimic the
+  // Playstation button, but in this app mostly functions as a larger
+  // place for the mouse to be clicked since the rest of the UI consists
+  // of thin lines that are hard to click.
+  drawCentralCircle(
+    focusPtR(0.5, c_centralCircleY, c_centralCircleR) * baseTransform);
 }
 
 
@@ -704,6 +717,13 @@ void GVMainWindow::drawSelStartButton(
                          XINPUT_GAMEPAD_START);
 
   drawSquare(transform, buttons & mask);
+}
+
+
+void GVMainWindow::drawCentralCircle(
+  D2D1_MATRIX_3X2_F transform)
+{
+  drawCircle(transform, true /*fill*/);
 }
 
 

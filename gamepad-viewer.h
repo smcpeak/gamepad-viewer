@@ -143,6 +143,9 @@ public:      // methods
   // Draw one of the select/start buttons.
   void drawSelStartButton(D2D1_MATRIX_3X2_F transform, bool leftSide);
 
+  // Draw the central filled circle.
+  void drawCentralCircle(D2D1_MATRIX_3X2_F transform);
+
   // Cause a repaint event that will redraw the entire window.
   void invalidateAllPixels();
 
