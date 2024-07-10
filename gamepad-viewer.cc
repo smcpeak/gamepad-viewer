@@ -57,6 +57,7 @@ bool g_useTransparency = true;
 enum {
   IDM_SET_LINE_COLOR = 1,
   IDM_TOGGLE_TEXT = 2,
+  IDM_TOGGLE_TOPMOST = 3,
 };
 
 
@@ -74,7 +75,8 @@ GVMainWindow::GVMainWindow()
     m_hasControllerState(false),
     m_lastDragPoint{},
     m_movingWindow(false),
-    m_showText(false)
+    m_showText(false),
+    m_topmostWindow(false)
 {
   // I'm not sure if the default ctor initializes this.
   std::memset(&m_controllerState, 0, sizeof(m_controllerState));
@@ -636,8 +638,12 @@ bool GVMainWindow::onKeyDown(WPARAM wParam, LPARAM lParam)
       runColorChooser();
       return true;
 
-    case 'T':
+    case 'S':
       toggleShowText();
+      return true;
+
+    case 'T':
+      toggleTopmost();
       return true;
   }
 
@@ -657,7 +663,7 @@ void GVMainWindow::createContextMenu()
          m_contextMenu,
          MF_STRING,
          IDM_SET_LINE_COLOR,
-         L"Set line &color")) {
+         L"Set line color (C)")) {
     winapiDie(L"AppendMenu");
   }
 
@@ -665,7 +671,15 @@ void GVMainWindow::createContextMenu()
          m_contextMenu,
          MF_STRING,
          IDM_TOGGLE_TEXT,
-         L"&Toggle text display")) {
+         L"Toggle text display (S)")) {
+    winapiDie(L"AppendMenu");
+  }
+
+  if (!AppendMenu(
+         m_contextMenu,
+         MF_STRING,
+         IDM_TOGGLE_TOPMOST,
+         L"Toggle topmost (T)")) {
     winapiDie(L"AppendMenu");
   }
 }
@@ -713,6 +727,10 @@ bool GVMainWindow::onCommand(WPARAM wParam, LPARAM lParam)
     case IDM_TOGGLE_TEXT:
       toggleShowText();
       return true;
+
+    case IDM_TOGGLE_TOPMOST:
+      toggleTopmost();
+      return true;
   }
 
   return false;
@@ -754,6 +772,21 @@ void GVMainWindow::toggleShowText()
 {
   m_showText = !m_showText;
   invalidateAllPixels();
+}
+
+
+void GVMainWindow::toggleTopmost()
+{
+  m_topmostWindow = !m_topmostWindow;
+  TRACE2(L"toggleTopmost: now " << m_topmostWindow);
+
+  if (!SetWindowPos(
+         m_hwnd,
+         m_topmostWindow? HWND_TOPMOST : HWND_NOTOPMOST,
+         0,0,0,0,                      // New pos/size, ignored.
+         SWP_NOMOVE | SWP_NOSIZE)) {   // Ignore pos/size.
+    winapiDie(L"SetWindowPos");
+  }
 }
 
 

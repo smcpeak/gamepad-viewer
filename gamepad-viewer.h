@@ -63,6 +63,10 @@ public:      // data
   // If true, show the textual display of the controller inputs.
   bool m_showText;
 
+  // If true, set our window to be on top of all others (that are not
+  // also topmost).
+  bool m_topmostWindow;
+
 public:      // methods
   GVMainWindow();
 
@@ -164,6 +168,9 @@ public:      // methods
 
   // Toggle whether we show the text.
   void toggleShowText();
+
+  // Toggle whether this window is topmost.
+  void toggleTopmost();
 
   // BaseWindow methods.
   virtual LRESULT handleMessage(
