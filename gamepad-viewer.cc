@@ -866,7 +866,9 @@ void GVMainWindow::onContextMenu(int x, int y)
          0,                  // nReserved
          m_hwnd,
          nullptr)) {         // prcRect
-    winapiDie(L"TrackPopupMenu");
+    // At least sometimes this triggers a second time with the error
+    // "Popup menu already active.", so ignore it.
+    //winapiDie(L"TrackPopupMenu");
   }
 }
 
