@@ -116,9 +116,12 @@ public:      // methods
   void drawSquare(D2D1_MATRIX_3X2_F transform, bool fill);
 
   // Draw a square that is filled, from the bottom, by `fillAmount`.
+  // `fillHR` is the horizontal radius of the filled portion, where 1.0
+  // represents filling the box completely.
   void drawPartiallyFilledSquare(
     D2D1_MATRIX_3X2_F transform,
-    float fillAmount);
+    float fillAmount,
+    float fillHR);
 
   // Draw a line from (x1,y1) to (x2,y2).
   void drawLine(

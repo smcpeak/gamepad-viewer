@@ -519,13 +519,14 @@ void GVMainWindow::drawSquare(
   D2D1_MATRIX_3X2_F transform,
   bool fill)
 {
-  drawPartiallyFilledSquare(transform, fill? 1.0 : 0.0);
+  drawPartiallyFilledSquare(transform, fill? 1.0 : 0.0, 1.0 /*fillHR*/);
 }
 
 
 void GVMainWindow::drawPartiallyFilledSquare(
   D2D1_MATRIX_3X2_F transform,
-  float fillAmount)
+  float fillAmount,
+  float fillHR)
 {
   m_renderTarget->SetTransform(transform);
 
@@ -545,6 +546,12 @@ void GVMainWindow::drawPartiallyFilledSquare(
 
   if (fillAmount > 0) {
     square.top = square.bottom - (square.bottom-square.top) * fillAmount;
+
+    // Apply `fillHR` to `square`.
+    float hr = (square.right - square.left) / 2.0;
+    float x = (square.right + square.left) / 2.0;
+    square.left = x - hr * fillHR;
+    square.right = x + hr * fillHR;
 
     m_renderTarget->FillRectangle(
       square,
@@ -637,9 +644,15 @@ void GVMainWindow::drawShoulderButtons(
   float fillAmount = trigger / 255.0;
 
   // Trigger.
+  //
+  // If `trigger` exceeds the dead zone threshold, then the fill is the
+  // entire rectangle width.  But if not, it is only half of the width
+  // in order to indicate that the game may not regiser it.
+  //
   drawPartiallyFilledSquare(
     focusPtHVR(0.5, c_triggerVR, 0.5, c_triggerVR) * transform,
-    fillAmount);
+    fillAmount,
+    trigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD? 1.0 : 0.5);
 }
 
 
