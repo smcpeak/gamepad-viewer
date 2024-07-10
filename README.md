@@ -68,7 +68,7 @@ Major current limitations:
 
 * Configuration is not saved across invocations.
 
-See [todo.txt](doc/todo.txt) for minor issues, enhancements, etc.
+See [todo.txt](todo.txt) for minor issues, enhancements, etc.
 
 
 ## License
