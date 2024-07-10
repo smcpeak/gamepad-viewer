@@ -31,6 +31,9 @@ LIBS += -ldwrite
 # XInput.
 LIBS += -lxinput
 
+# For ChooseColor.
+LIBS += -lcomdlg32
+
 
 OBJS :=
 OBJS += base-window.o

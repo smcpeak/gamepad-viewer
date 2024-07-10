@@ -17,6 +17,7 @@
 #include <cmath>                       // std::{cos, sin, atan2, sqrt}
 #include <cstdlib>                     // std::{getenv, atoi}
 #include <cstring>                     // std::memset
+#include <iomanip>                     // std::{dec, hex}
 #include <iostream>                    // std::{wcerr, flush}
 #include <sstream>                     // std::wostringstream
 
@@ -52,11 +53,19 @@ bool g_useTransparency = true;
 #define TRVAL(expr) L" " WIDE_STRINGIZE(expr) L"=" << (expr)
 
 
+// Menu item identifiers.
+enum {
+  IDM_SET_LINE_COLOR = 1,
+};
+
+
 GVMainWindow::GVMainWindow()
   : m_d2dFactory(nullptr),
     m_writeFactory(nullptr),
     m_textFormat(nullptr),
     m_strokeStyleFixedThickness(nullptr),
+    m_contextMenu(nullptr),
+    m_linesColorref(RGB(128, 128, 224)),     // Pale blue.
     m_renderTarget(nullptr),
     m_textBrush(nullptr),
     m_linesBrush(nullptr),
@@ -125,6 +134,8 @@ void GVMainWindow::createDeviceIndependentResources()
     0,
     &m_strokeStyleFixedThickness);
   assert(m_strokeStyleFixedThickness);
+
+  createContextMenu();
 }
 
 
@@ -134,6 +145,8 @@ void GVMainWindow::destroyDeviceIndependentResources()
   safeRelease(m_writeFactory);
   safeRelease(m_textFormat);
   safeRelease(m_strokeStyleFixedThickness);
+
+  destroyContextMenu();
 }
 
 
@@ -168,23 +181,49 @@ void GVMainWindow::createGraphicsResources()
       &m_renderTarget);
     assert(m_renderTarget);
 
-    // Pale blue for the lines and text.
-    D2D1_COLOR_F const linesColor = D2D1::ColorF(0.5, 0.5, 0.9);
-    CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
-      linesColor,
-      &m_textBrush);
-    assert(m_textBrush);
-
-    CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
-      linesColor,
-      &m_linesBrush);
+    createLinesBrushes();
   }
 }
 
 
-void GVMainWindow::discardGraphicsResources()
+void GVMainWindow::destroyGraphicsResources()
 {
   safeRelease(m_renderTarget);
+  destroyLinesBrushes();
+}
+
+
+static float BYTE_to_float(BYTE b)
+{
+  return (float)b / 255.0f;
+}
+
+
+static D2D1_COLOR_F COLORREF_to_ColorF(COLORREF cr)
+{
+  return D2D1::ColorF(
+    BYTE_to_float(GetRValue(cr)),
+    BYTE_to_float(GetGValue(cr)),
+    BYTE_to_float(GetBValue(cr)));
+}
+
+
+void GVMainWindow::createLinesBrushes()
+{
+  D2D1_COLOR_F linesColor = COLORREF_to_ColorF(m_linesColorref);
+  CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
+    linesColor,
+    &m_textBrush);
+  assert(m_textBrush);
+
+  CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
+    linesColor,
+    &m_linesBrush);
+}
+
+
+void GVMainWindow::destroyLinesBrushes()
+{
   safeRelease(m_textBrush);
   safeRelease(m_linesBrush);
 }
@@ -232,7 +271,7 @@ void GVMainWindow::onPaint()
     // means the target device has become invalid.  Dispose of resources
     // and prepare to re-create them.
     TRACE2(L"createGraphicsResources: D2DERR_RECREATE_TARGET");
-    discardGraphicsResources();
+    destroyGraphicsResources();
   }
   else if (FAILED(hr)) {
     winapiDieHR(L"EndDraw", hr);
@@ -586,10 +625,105 @@ bool GVMainWindow::onKeyDown(WPARAM wParam, LPARAM lParam)
       TRACE2(L"Saw Q keypress.");
       PostMessage(m_hwnd, WM_CLOSE, 0, 0);
       return true;
+
+    case 'C':
+      runColorChooser();
+      return true;
   }
 
   // Not handled.
   return false;
+}
+
+
+void GVMainWindow::createContextMenu()
+{
+  m_contextMenu = CreatePopupMenu();
+  if (!m_contextMenu) {
+    winapiDie(L"CreatePopupMenu");
+  }
+
+  if (!AppendMenu(
+         m_contextMenu,
+         MF_STRING,
+         IDM_SET_LINE_COLOR,
+         L"Set line color")) {
+    winapiDie(L"AppendMenu");
+  }
+}
+
+
+void GVMainWindow::destroyContextMenu()
+{
+  if (!DestroyMenu(m_contextMenu)) {
+    winapiDie(L"DestroyMenu");
+  }
+  m_contextMenu = nullptr;
+}
+
+
+void GVMainWindow::onContextMenu(int x, int y)
+{
+  POINT pt = {x,y};
+  ClientToScreen(m_hwnd, &pt);
+
+  TRACE2(L"onContextMenu:" << TRVAL(x) << TRVAL(y));
+
+  if (!TrackPopupMenu(
+         m_contextMenu,
+         TPM_LEFTALIGN | TPM_TOPALIGN,
+         x,
+         y,
+         0,                  // nReserved
+         m_hwnd,
+         nullptr)) {         // prcRect
+    winapiDie(L"TrackPopupMenu");
+  }
+}
+
+
+bool GVMainWindow::onCommand(WPARAM wParam, LPARAM lParam)
+{
+  TRACE2(L"onCommand:" << std::hex <<
+         TRVAL(wParam) << TRVAL(lParam) << std::dec);
+
+  if (wParam == IDM_SET_LINE_COLOR) {
+    runColorChooser();
+    return true;
+  }
+
+  return false;
+}
+
+
+void GVMainWindow::runColorChooser()
+{
+  TRACE2(L"runColorChooser");
+  CHOOSECOLOR cc;
+  ZeroMemory(&cc, sizeof(cc));
+  cc.lStructSize = sizeof(cc);
+  cc.hwndOwner = m_hwnd;
+  cc.rgbResult = m_linesColorref;
+  cc.Flags = CC_RGBINIT | CC_FULLOPEN;
+
+  // This is required even if we say CC_PREVENTFULLOPEN.
+  static COLORREF customColors[16];
+  cc.lpCustColors = (LPDWORD)customColors;
+
+  if (ChooseColor(&cc)) {
+    m_linesColorref = cc.rgbResult;
+    int r = GetRValue(m_linesColorref);
+    int g = GetGValue(m_linesColorref);
+    int b = GetBValue(m_linesColorref);
+    TRACE2(L"Got color:" <<
+      TRVAL(r) <<
+      TRVAL(g) <<
+      TRVAL(b));
+
+    destroyLinesBrushes();
+    createLinesBrushes();
+    invalidateAllPixels();
+  }
 }
 
 
@@ -641,7 +775,7 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
       if (!KillTimer(m_hwnd, 1)) {
         winapiDie(L"KillTimer");
       }
-      discardGraphicsResources();
+      destroyGraphicsResources();
       destroyDeviceIndependentResources();
       PostQuitMessage(0);
       return 0;
@@ -658,6 +792,8 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
       onResize();
       return 0;
 
+    // Disabled for now since it interferes with `WM_CONTEXTMENU`.
+#if 0
     case WM_NCHITTEST: {
       // Arrange to move the window whenever an opaque part of the
       // client area is clicked and dragged.
@@ -670,9 +806,21 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
       }
       return hit;
     }
+#endif
 
     case WM_KEYDOWN:
       if (onKeyDown(wParam, lParam)) {
+        // Handled.
+        return 0;
+      }
+      break;
+
+    case WM_CONTEXTMENU:
+      onContextMenu(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+      return 0;
+
+    case WM_COMMAND:
+      if (onCommand(wParam, lParam)) {
         // Handled.
         return 0;
       }

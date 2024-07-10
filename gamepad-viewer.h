@@ -24,11 +24,17 @@ public:      // data
   // DirectWrite factory, used to create `m_textFormat`.
   IDWriteFactory *m_writeFactory;
 
-  // "Text format" object for ... what?
+  // "Text format" object used by `DrawText`.
   IDWriteTextFormat *m_textFormat;
 
   // Stroke style to avoid transforming its thickness.
   ID2D1StrokeStyle1 *m_strokeStyleFixedThickness;
+
+  // The menu to show on right-click.
+  HMENU m_contextMenu;
+
+  // Color to use to draw the lines.
+  COLORREF m_linesColorref;
 
   // ----------------- D2D device-dependent resources ------------------
   // D2D render target associated with the main window.
@@ -63,12 +69,15 @@ public:      // methods
   // Return the client rectangle size as a D2D1_SIZE_U.
   D2D1_SIZE_U getClientRectSizeU() const;
 
-  // If necessary, populate `m_renderTarget`, `m_brush`, and
-  // `m_ellipse`.
+  // If necessary, create the device-independent resources.
   void createGraphicsResources();
 
-  // Release and nullify `m_renderTarget` and `m_brush`.
-  void discardGraphicsResources();
+  // Release and nullify the device-independent resources.
+  void destroyGraphicsResources();
+
+  // Create/destroy `m_textBrush` and `m_linesBrush`.
+  void createLinesBrushes();
+  void destroyLinesBrushes();
 
   // Handle `WM_TIMER`.
   void onTimer(WPARAM wParam);
@@ -129,6 +138,20 @@ public:      // methods
 
   // Handle `WM_KEYDOWN`.  Return true if handled.
   bool onKeyDown(WPARAM wParam, LPARAM lParam);
+
+  // Create/destroy `m_contextMenu`.
+  void createContextMenu();
+  void destroyContextMenu();
+
+  // Handle `WM_CONTEXTMENU`.  The mouse was clicked at (x,y) in client
+  // coordinates.
+  void onContextMenu(int x, int y);
+
+  // Handle `WM_COMMAND`.  Return true if handled.
+  bool onCommand(WPARAM wParam, LPARAM lParam);
+
+  // Show the dialog that lets the user pick the lines color.
+  void runColorChooser();
 
   // BaseWindow methods.
   virtual LRESULT handleMessage(
