@@ -8,7 +8,7 @@
 
 #include <windows.h>                   // winapi
 
-#include <string>                      // std::wstring
+#include <string>                      // std::{string, wstring}
 
 
 // Stringize an argument as a wide string.
@@ -50,6 +50,11 @@ void winapiDieHR(wchar_t const *functionName, HRESULT hr);
   if (HRESULT hr = function(__VA_ARGS__); FAILED(hr)) { \
     winapiDieHR(WIDE_STRINGIZE(function), hr);          \
   }
+
+
+// Convert from narrow string, assumed to use UTF-8 encoding, to wide
+// string.
+std::wstring toWideString(std::string const &str);
 
 
 // Structure to hold the arguments for a `CreateWindowExW` call.

@@ -7,6 +7,7 @@
 #define GAMEPAD_VIEWER_H
 
 #include "base-window.h"               // BaseWindow
+#include "gpv-config.h"                // GPVConfig
 
 #include <d2d1.h>                      // Direct2D
 #include <d2d1_1.h>                    // ID2D1StrokeStyle1, ID2DFactory1
@@ -35,9 +36,6 @@ public:      // data
   // The menu to show on right-click.
   HMENU m_contextMenu;
 
-  // Color to use to draw the lines.
-  COLORREF m_linesColorref;
-
   // Color to use to draw the highlights.
   COLORREF m_highlightColorref;
 
@@ -56,6 +54,9 @@ public:      // data
   ID2D1SolidColorBrush *m_highlightBrush;
 
   // ------------------------- Other app state -------------------------
+  // User-adjustable configuration.
+  GPVConfig m_config;
+
   // Current controller input.
   XINPUT_STATE m_controllerState;
 
@@ -204,6 +205,19 @@ public:      // methods
 
   // Toggle whether this window is topmost.
   void toggleTopmost();
+
+  // Return the name of the file in which configuration information is
+  // stored.
+  std::string getConfigFilename() const;
+
+  // Attempt to read the configuration from the file.  If the file does
+  // not exist, skip it.  If it does, but there is an error, print a
+  // tracing message but continue.
+  void loadConfiguration();
+
+  // Attempt to write the current configuration to the file.  On error,
+  // print a tracing message but keep going.
+  void saveConfiguration() const;
 
   // BaseWindow methods.
   virtual LRESULT handleMessage(

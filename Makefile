@@ -10,6 +10,7 @@ CXXFLAGS += -g
 CXXFLAGS += -Wall
 CXXFLAGS += -Werror
 CXXFLAGS += -DUNICODE
+CXXFLAGS += -std=c++17
 
 # Generate .d files.
 CXXFLAGS += -MMD
@@ -38,6 +39,7 @@ LIBS += -lcomdlg32
 OBJS :=
 OBJS += base-window.o
 OBJS += gamepad-viewer.o
+OBJS += gpv-config.o
 OBJS += winapi-util.o
 
 

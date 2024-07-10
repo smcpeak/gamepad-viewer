@@ -7,8 +7,10 @@
 
 #include <windows.h>                   // winapi
 
+#include <codecvt>                     // std::wstring_convert
 #include <cstdlib>                     // std::exit
 #include <iostream>                    // std::wcerr
+#include <locale>                      // std::wstring_convert
 #include <sstream>                     // std::wostreamstream
 #include <string>                      // std::wstring
 
@@ -99,6 +101,14 @@ void winapiDieHR(wchar_t const *functionName, HRESULT hr)
 {
   std::wcerr << functionName << L": " << getHRErrorMessage(hr) << L"\n";
   std::exit(2);
+}
+
+
+// https://stackoverflow.com/questions/2573834/c-convert-string-or-char-to-wstring-or-wchar-t
+std::wstring toWideString(std::string const &str)
+{
+  std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+  return converter.from_bytes(str);
 }
 
 

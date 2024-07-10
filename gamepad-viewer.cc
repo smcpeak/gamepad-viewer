@@ -5,7 +5,7 @@
 
 #include "gamepad-viewer.h"            // this module
 
-#include "winapi-util.h"               // getLastErrorMessage, CreateWindowExWArgs
+#include "winapi-util.h"               // getLastErrorMessage, CreateWindowExWArgs, toWideString
 
 #include <d2d1.h>                      // Direct2D
 #include <d2d1_1.h>                    // D2D1_STROKE_STYLE_PROPERTIES1
@@ -19,6 +19,7 @@
 #include <cmath>                       // std::{cos, sin, atan2, sqrt}
 #include <cstdlib>                     // std::{getenv, atoi}
 #include <cstring>                     // std::memset
+#include <filesystem>                  // std::filesystem
 #include <iomanip>                     // std::{dec, hex}
 #include <iostream>                    // std::{wcerr, flush}
 #include <sstream>                     // std::wostringstream
@@ -183,12 +184,12 @@ GVMainWindow::GVMainWindow()
     m_textFormat(nullptr),
     m_strokeStyleFixedThickness(nullptr),
     m_contextMenu(nullptr),
-    m_linesColorref(RGB(118, 235, 220)),     // Pastel cyan.
     m_highlightColorref(RGB(53, 53, 242)),   // Dark blue, almost purple.
     m_renderTarget(nullptr),
     m_textBrush(nullptr),
     m_linesBrush(nullptr),
     m_highlightBrush(nullptr),
+    m_config(),
     m_controllerState(),
     m_hasControllerState(false),
     m_lastDragPoint{},
@@ -334,7 +335,7 @@ static D2D1_COLOR_F COLORREF_to_ColorF(COLORREF cr)
 
 void GVMainWindow::createLinesBrushes()
 {
-  D2D1_COLOR_F linesColor = COLORREF_to_ColorF(m_linesColorref);
+  D2D1_COLOR_F linesColor = COLORREF_to_ColorF(m_config.m_linesColorref);
   CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
     linesColor,
     &m_textBrush);
@@ -1060,7 +1061,7 @@ void GVMainWindow::runColorChooser(bool highlight)
 {
   // Input/output color.
   COLORREF &colorref =
-    highlight? m_highlightColorref : m_linesColorref;
+    highlight? m_highlightColorref : m_config.m_linesColorref;
 
   TRACE2(L"runColorChooser:" << TRVAL(highlight));
   CHOOSECOLOR cc;
@@ -1113,11 +1114,54 @@ void GVMainWindow::toggleTopmost()
 }
 
 
+std::string GVMainWindow::getConfigFilename() const
+{
+  // For now, just save it to the directory where we started.
+  return "gamepad-viewer.json";
+}
+
+
+void GVMainWindow::loadConfiguration()
+{
+  std::string fname = getConfigFilename();
+  if (std::filesystem::exists(fname)) {
+    std::string error = m_config.loadFromFile(fname);
+
+    if (!error.empty()) {
+      // Just print the error and continue.
+      TRACE1(toWideString(fname + ": " + error));
+    }
+    else {
+      TRACE2(toWideString("Read " + fname));
+    }
+  }
+  else {
+    TRACE2(toWideString(fname) << " does not exist, skipping");
+  }
+}
+
+
+void GVMainWindow::saveConfiguration() const
+{
+  std::string fname = getConfigFilename();
+  std::string error = m_config.saveToFile(fname);
+  if (!error.empty()) {
+    // Just print the error and continue.
+    TRACE1(toWideString(fname + ": " + error));
+  }
+  else {
+    TRACE2(toWideString("Wrote " + fname));
+  }
+}
+
+
 LRESULT CALLBACK GVMainWindow::handleMessage(
   UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg) {
     case WM_CREATE: {
+      loadConfiguration();
+
       if (g_useTransparency) {
         // Arrange to treat purple as transparent.
         //
@@ -1161,6 +1205,7 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
       if (!KillTimer(m_hwnd, 1)) {
         winapiDie(L"KillTimer");
       }
+      saveConfiguration();
       destroyGraphicsResources();
       destroyDeviceIndependentResources();
       PostQuitMessage(0);
