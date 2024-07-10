@@ -996,10 +996,16 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
 
     case WM_LBUTTONDOWN:
       m_movingWindow = true;
+
+      // Capture the mouse during the drag so even if the mouse moves
+      // outside the opaque area we keep tracking it.
+      SetCapture(m_hwnd);
+
       GetCursorPos(&m_lastDragPoint);
       return 0;
 
     case WM_LBUTTONUP:
+      ReleaseCapture();
       m_movingWindow = false;
       return 0;
 
