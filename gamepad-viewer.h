@@ -54,6 +54,12 @@ public:      // data
   // True if the last poll attempt succeeded.
   bool m_hasControllerState;
 
+  // Last point where the mouse was seen pressed.
+  POINT m_lastDragPoint;
+
+  // If true, then we are moving the window by mouse dragging.
+  bool m_movingWindow;
+
 public:      // methods
   GVMainWindow();
 

@@ -70,7 +70,9 @@ GVMainWindow::GVMainWindow()
     m_textBrush(nullptr),
     m_linesBrush(nullptr),
     m_controllerState(),
-    m_hasControllerState(false)
+    m_hasControllerState(false),
+    m_lastDragPoint{},
+    m_movingWindow(false)
 {
   // I'm not sure if the default ctor initializes this.
   std::memset(&m_controllerState, 0, sizeof(m_controllerState));
@@ -792,25 +794,51 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
       onResize();
       return 0;
 
-    // Disabled for now since it interferes with `WM_CONTEXTMENU`.
-#if 0
-    case WM_NCHITTEST: {
-      // Arrange to move the window whenever an opaque part of the
-      // client area is clicked and dragged.
-      //
-      // https://stackoverflow.com/a/7773941/2659307
-      //
-      LRESULT hit = DefWindowProc(m_hwnd, uMsg, wParam, lParam);
-      if (hit == HTCLIENT) {
-        hit = HTCAPTION;
-      }
-      return hit;
-    }
-#endif
-
     case WM_KEYDOWN:
       if (onKeyDown(wParam, lParam)) {
         // Handled.
+        return 0;
+      }
+      break;
+
+    case WM_LBUTTONDOWN:
+      m_movingWindow = true;
+      GetCursorPos(&m_lastDragPoint);
+      return 0;
+
+    case WM_LBUTTONUP:
+      m_movingWindow = false;
+      return 0;
+
+    case WM_MOUSEMOVE:
+      if (m_movingWindow) {
+        POINT pt;
+        GetCursorPos(&pt);
+
+        RECT r;
+        GetWindowRect(m_hwnd, &r);
+
+        // Prepare to adjust the window rectangle by the amount the
+        // mouse moved.
+        int dx = pt.x - m_lastDragPoint.x;
+        int dy = pt.y - m_lastDragPoint.y;
+
+        // Save the most recent drag point.
+        m_lastDragPoint = pt;
+
+        // Move the window.
+        //
+        // This does not work as well as it could because when the
+        // mouse moves enough to get outside the thin lines, I stop
+        // getting mouse move messages.
+        //
+        MoveWindow(m_hwnd,
+          r.left + dx,
+          r.top + dy,
+          r.right - r.left,
+          r.bottom - r.top,
+          false /*repaint*/);
+
         return 0;
       }
       break;
