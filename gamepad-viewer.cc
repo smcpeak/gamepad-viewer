@@ -72,7 +72,7 @@ enum {
 
 // Distance from top to center of face button cluster and center of
 // select/start cluster.
-float const c_faceButtonsY = 0.40;
+float const c_faceButtonsY = 0.42;
 
 // Radius of face button clusters.
 float const c_faceButtonsR = 0.15;
