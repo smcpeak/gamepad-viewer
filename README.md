@@ -62,12 +62,6 @@ context menu also shows the key bindings.
 
 ## Limitations
 
-Major current limitations:
-
-* It only shows the first connected gamepad.
-
-* Configuration is not saved across invocations.
-
 See [todo.txt](todo.txt) for minor issues, enhancements, etc.
 
 

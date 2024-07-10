@@ -36,6 +36,9 @@ public:      // data
   // Milliseconds between attempts to poll the controller.
   int m_pollingIntervalMS;
 
+  // ID in [0,3] of the controller to poll.
+  int m_controllerID;
+
 public:      // methods
   // Initialize with defaults.
   GPVConfig();

@@ -72,6 +72,10 @@ enum {
   IDM_TOGGLE_TOPMOST,
   IDM_SMALLER_WINDOW,
   IDM_LARGER_WINDOW,
+  IDM_CONTROLLER_0,
+  IDM_CONTROLLER_1,
+  IDM_CONTROLLER_2,
+  IDM_CONTROLLER_3,
   IDM_QUIT,
 };
 
@@ -195,7 +199,8 @@ GVMainWindow::GVMainWindow()
     m_controllerState(),
     m_hasControllerState(false),
     m_lastDragPoint{},
-    m_movingWindow(false)
+    m_movingWindow(false),
+    m_lastShownControllerID(-1)
 {
   // I'm not sure if the default ctor initializes this.
   std::memset(&m_controllerState, 0, sizeof(m_controllerState));
@@ -280,7 +285,7 @@ void GVMainWindow::destroyDeviceIndependentResources()
 void GVMainWindow::pollControllerState()
 {
   memset(&m_controllerState, 0, sizeof(m_controllerState));
-  DWORD res = XInputGetState(0 /*index*/, &m_controllerState);
+  DWORD res = XInputGetState(m_config.m_controllerID, &m_controllerState);
   m_hasControllerState = (res == ERROR_SUCCESS);
 }
 
@@ -368,9 +373,12 @@ void GVMainWindow::onTimer(WPARAM wParam)
 
   pollControllerState();
 
-  if (prevPN != m_controllerState.dwPacketNumber) {
+  if (prevPN != m_controllerState.dwPacketNumber ||
+      m_lastShownControllerID != m_config.m_controllerID) {
     // Redraw to show the new state.
     invalidateAllPixels();
+
+    m_lastShownControllerID = m_config.m_controllerID;
   }
 }
 
@@ -461,6 +469,7 @@ void GVMainWindow::drawControllerState()
     XINPUT_STATE const &i = m_controllerState;
     XINPUT_GAMEPAD const &g = i.Gamepad;
 
+    oss << L"controllerID: " << m_config.m_controllerID << L"\n";
     oss << L"hasState: " << m_hasControllerState << L"\n";
     oss << L"packet: " << i.dwPacketNumber << L"\n";
     oss << L"buttons: " << std::hex << g.wButtons << std::dec << L"\n";
@@ -973,14 +982,36 @@ void GVMainWindow::createContextMenu()
   appendContextMenu(IDM_TOGGLE_TOPMOST,      L"Toggle topmost (T)");
   appendContextMenu(IDM_SMALLER_WINDOW,      L"Make display smaller (-)");
   appendContextMenu(IDM_LARGER_WINDOW,       L"Make display larger (+)");
+
+  m_controllerIDMenu = CreatePopupMenu();
+  if (!m_controllerIDMenu) {
+    winapiDie(L"CreatePopupMenu");
+  }
+
+  appendMenu(m_controllerIDMenu, IDM_CONTROLLER_0, L"Use controller 0");
+  appendMenu(m_controllerIDMenu, IDM_CONTROLLER_1, L"Use controller 1");
+  appendMenu(m_controllerIDMenu, IDM_CONTROLLER_2, L"Use controller 2");
+  appendMenu(m_controllerIDMenu, IDM_CONTROLLER_3, L"Use controller 3");
+
+  if (!AppendMenu(m_contextMenu, MF_STRING | MF_POPUP,
+                  (UINT_PTR)m_controllerIDMenu, L"Controller")) {
+    winapiDie(L"AppendMenu");
+  }
+
   appendContextMenu(IDM_QUIT,                L"Quit (Q)");
 }
 
 
 void GVMainWindow::appendContextMenu(int id, wchar_t const *label)
 {
+  appendMenu(m_contextMenu, id, label);
+}
+
+
+void GVMainWindow::appendMenu(HMENU menu, int id, wchar_t const *label)
+{
   if (!AppendMenu(
-         m_contextMenu,
+         menu,
          MF_STRING,
          id,
          label)) {
@@ -991,10 +1022,12 @@ void GVMainWindow::appendContextMenu(int id, wchar_t const *label)
 
 void GVMainWindow::destroyContextMenu()
 {
+  // This destroys `m_controllerIDMenu` too.
   if (!DestroyMenu(m_contextMenu)) {
     winapiDie(L"DestroyMenu");
   }
   m_contextMenu = nullptr;
+  m_controllerIDMenu = nullptr;
 }
 
 
@@ -1049,6 +1082,15 @@ bool GVMainWindow::onCommand(WPARAM wParam, LPARAM lParam)
     case IDM_LARGER_WINDOW:
       resizeWindow(+50);
       return true;
+
+    case IDM_CONTROLLER_0:
+    case IDM_CONTROLLER_1:
+    case IDM_CONTROLLER_2:
+    case IDM_CONTROLLER_3: {
+      int i = wParam - IDM_CONTROLLER_0;
+      m_config.m_controllerID = i;
+      return true;
+    }
 
     case IDM_QUIT:
       PostMessage(m_hwnd, WM_CLOSE, 0, 0);

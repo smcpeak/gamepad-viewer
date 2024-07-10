@@ -1,7 +1,6 @@
 
 TODO:
   - fix: antialiasing causes a black border
-  - adjustable controller ID
   - configurable whether to use transparency
   - add an icon
 

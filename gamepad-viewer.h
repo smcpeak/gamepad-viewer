@@ -36,6 +36,9 @@ public:      // data
   // The menu to show on right-click.
   HMENU m_contextMenu;
 
+  // The sub-menu listing the controller IDs.
+  HMENU m_controllerIDMenu;
+
   // ----------------- D2D device-dependent resources ------------------
   // D2D render target associated with the main window.
   ID2D1HwndRenderTarget *m_renderTarget;
@@ -65,6 +68,9 @@ public:      // data
 
   // If true, then we are moving the window by mouse dragging.
   bool m_movingWindow;
+
+  // The controller ID the last time we drew the controller state.
+  int m_lastShownControllerID;
 
 public:      // methods
   GVMainWindow();
@@ -176,6 +182,7 @@ public:      // methods
   // Create/destroy `m_contextMenu`.
   void createContextMenu();
   void appendContextMenu(int id, wchar_t const *label);
+  void appendMenu(HMENU menu, int id, wchar_t const *label);
   void destroyContextMenu();
 
   // Handle `WM_CONTEXTMENU`.  The mouse was clicked at (x,y) in client
