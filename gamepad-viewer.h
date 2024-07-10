@@ -36,6 +36,9 @@ public:      // data
   // Color to use to draw the lines.
   COLORREF m_linesColorref;
 
+  // Color to use to draw the highlights.
+  COLORREF m_highlightColorref;
+
   // ----------------- D2D device-dependent resources ------------------
   // D2D render target associated with the main window.
   ID2D1HwndRenderTarget *m_renderTarget;
@@ -46,6 +49,9 @@ public:      // data
   // Brush for drawing the thin lines that are always shown for buttons,
   // etc.
   ID2D1SolidColorBrush *m_linesBrush;
+
+  // Brush for drawing highlight lines.
+  ID2D1SolidColorBrush *m_highlightBrush;
 
   // ------------------------- Other app state -------------------------
   // Current controller input.
@@ -129,7 +135,8 @@ public:      // methods
     float x1,
     float y1,
     float x2,
-    float y2);
+    float y2,
+    bool highlight);
 
   // Draw the round face buttons.
   void drawRoundButtons(D2D1_MATRIX_3X2_F transform);
@@ -142,6 +149,18 @@ public:      // methods
 
   // Draw one of the sticks.
   void drawStick(D2D1_MATRIX_3X2_F transform, bool leftSide);
+
+  // Draw the speed indicator on the left thumb.
+  void drawSpeedIndicator(
+    D2D1_MATRIX_3X2_F transform,
+    float spotX,
+    float spotY,
+    float angleRadians,
+    int speed);
+
+  // Draw a up-pointing chevron in the nominal box.  Offset its Y
+  // coordinate by `dy`.
+  void drawChevron(D2D1_MATRIX_3X2_F transform, float dy);
 
   // Draw one of the select/start buttons.
   void drawSelStartButton(D2D1_MATRIX_3X2_F transform, bool leftSide);
@@ -173,8 +192,10 @@ public:      // methods
   // Handle `WM_COMMAND`.  Return true if handled.
   bool onCommand(WPARAM wParam, LPARAM lParam);
 
-  // Show the dialog that lets the user pick the lines color.
-  void runColorChooser();
+  // Show the dialog that lets the user pick the lines color.  If
+  // `highlight`, we are selecting the highlight color, otherwise the
+  // normal lines color.
+  void runColorChooser(bool highlight);
 
   // Toggle whether we show the text.
   void toggleShowText();

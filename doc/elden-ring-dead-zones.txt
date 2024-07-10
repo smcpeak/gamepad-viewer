@@ -1,0 +1,36 @@
+elden-ring-dead-zones.txt
+
+This file has my notes on where the Elden Ring dead zones are.
+
+
+Triggers
+--------
+
+Both activate at exactly 128.
+
+
+Right stick
+-----------
+
+Dead zone is a square with radius ~6600.
+
+Camera speed seems continuous after that, but didn't really carefully
+test.
+
+
+Left stick
+----------
+
+The dead zone is approximately an octagon with corners at 16k/8k.
+
+After that, exceeding 25.5k in one axis or 20k/20k in both crosses from
+walk to run.  Seems close to circular.
+
+After that, exceeding 30k in one axis or 23k/23k in both crosses to the
+region where Torrent will keep galloping.  Seems close to circular.
+
+
+
+
+
+EOF

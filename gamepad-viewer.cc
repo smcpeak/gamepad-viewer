@@ -22,6 +22,10 @@
 #include <sstream>                     // std::wostringstream
 
 
+// This should go someplace else...
+float const c_pi = 3.1415926535897932384626433832795;
+
+
 // Level of diagnostics to print.
 //
 //   1: API call failures.
@@ -55,11 +59,13 @@ bool g_useTransparency = true;
 
 // Menu item identifiers.
 enum {
-  IDM_SET_LINE_COLOR = 1,
-  IDM_TOGGLE_TEXT = 2,
-  IDM_TOGGLE_TOPMOST = 3,
-  IDM_SMALLER_WINDOW = 4,
-  IDM_LARGER_WINDOW = 5,
+  IDM_NONE,
+  IDM_SET_LINE_COLOR,
+  IDM_SET_HIGHLIGHT_COLOR,
+  IDM_TOGGLE_TEXT,
+  IDM_TOGGLE_TOPMOST,
+  IDM_SMALLER_WINDOW,
+  IDM_LARGER_WINDOW,
 };
 
 
@@ -107,6 +113,15 @@ float const c_stickMaxDeflectR = 0.3;
 // Radius of the filled circle representing the thumb.
 float const c_stickThumbR = 0.1;
 
+// By how much vertical space are the chevrons separated?
+float const c_chevronSeparation = 0.2;
+
+// Horizontal radius of the chevrons.
+float const c_chevronHR = 0.25;
+
+// Vertical radius of the chevrons.
+float const c_chevronVR = 0.17;
+
 // Horizontal distance from the center line to the sel/start buttons.
 float const c_selStartX = 0.08;
 
@@ -129,6 +144,36 @@ float const c_circleMargin = 0.1;
 float const c_lineWidthPixels = 3.0;
 
 
+// When the trigger is greater than or equal to this value, we regard it
+// as "active".
+//
+// Substitutes for XINPUT_GAMEPAD_TRIGGER_THRESHOLD.
+//
+int const c_triggerDeadZone = 128;
+
+// When either axis of the right stick exceeds this value, it is treated
+// as active.
+//
+// Substitutes for XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE.
+//
+int const c_rightStickDeadZone = 6600;
+
+// When the left stick exceeds the octagon with this as its radius, it
+// is treated as at least walking speed.
+//
+// Substitutes for XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE.
+//
+int const c_leftStickWalkThreshold = 16000;
+
+// When the left stick exceeds a circle with this radius, the character
+// will run when on foot, and Torrent will gallop.
+int const c_leftStickRunThreshold = 25500;
+
+// When the left stick exceeds a circle with this radius, Torrent will
+// maintain his sprint speed.
+int const c_leftStickSprintThreshold = 30000;
+
+
 GVMainWindow::GVMainWindow()
   : m_d2dFactory(nullptr),
     m_writeFactory(nullptr),
@@ -136,9 +181,11 @@ GVMainWindow::GVMainWindow()
     m_strokeStyleFixedThickness(nullptr),
     m_contextMenu(nullptr),
     m_linesColorref(RGB(128, 128, 224)),     // Pale blue.
+    m_highlightColorref(RGB(255, 255, 255)), // White.
     m_renderTarget(nullptr),
     m_textBrush(nullptr),
     m_linesBrush(nullptr),
+    m_highlightBrush(nullptr),
     m_controllerState(),
     m_hasControllerState(false),
     m_lastDragPoint{},
@@ -293,6 +340,11 @@ void GVMainWindow::createLinesBrushes()
   CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
     linesColor,
     &m_linesBrush);
+
+  D2D1_COLOR_F highlightColor = COLORREF_to_ColorF(m_highlightColorref);
+  CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
+    highlightColor,
+    &m_highlightBrush);
 }
 
 
@@ -300,6 +352,7 @@ void GVMainWindow::destroyLinesBrushes()
 {
   safeRelease(m_textBrush);
   safeRelease(m_linesBrush);
+  safeRelease(m_highlightBrush);
 }
 
 
@@ -565,16 +618,34 @@ void GVMainWindow::drawLine(
   float x1,
   float y1,
   float x2,
-  float y2)
+  float y2,
+  bool highlight)
 {
   m_renderTarget->SetTransform(transform);
 
   m_renderTarget->DrawLine(
     D2D1::Point2F(x1, y1),
     D2D1::Point2F(x2, y2),
-    m_linesBrush,
+    highlight? m_highlightBrush : m_linesBrush,
     c_lineWidthPixels,                 // strokeWidth,
     m_strokeStyleFixedThickness);      // strokeStyle
+}
+
+
+// Rotate around (0.5,0.5) counterclockwise by `degrees`.
+static D2D1_MATRIX_3X2_F rotateAroundCenterDeg(float degrees)
+{
+  return D2D1::Matrix3x2F::Rotation(degrees, D2D1::Point2F(0.5, 0.5));
+}
+
+static float radiansToDegrees(float radians)
+{
+  return radians / c_pi * 180.0;
+}
+
+static D2D1_MATRIX_3X2_F rotateAroundCenterRad(float radians)
+{
+  return rotateAroundCenterDeg(radiansToDegrees(radians));
 }
 
 
@@ -596,8 +667,7 @@ void GVMainWindow::drawRoundButtons(
       buttons & masks[i]);
 
     // Rotate the transform 90 degrees around the center.
-    transform =
-      D2D1::Matrix3x2F::Rotation(90, D2D1::Point2F(0.5, 0.5)) * transform;
+    transform = rotateAroundCenterDeg(90) * transform;
   }
 }
 
@@ -620,8 +690,7 @@ void GVMainWindow::drawDPadButtons(
       buttons & masks[i]);
 
     // Rotate the transform 90 degrees around the center.
-    transform =
-      D2D1::Matrix3x2F::Rotation(90, D2D1::Point2F(0.5, 0.5)) * transform;
+    transform = rotateAroundCenterDeg(90) * transform;
   }
 }
 
@@ -652,7 +721,7 @@ void GVMainWindow::drawShoulderButtons(
   drawPartiallyFilledSquare(
     focusPtHVR(0.5, c_triggerVR, 0.5, c_triggerVR) * transform,
     fillAmount,
-    trigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD? 1.0 : 0.5);
+    trigger > c_triggerDeadZone? 1.0 : 0.5);
 }
 
 
@@ -671,20 +740,40 @@ void GVMainWindow::drawStick(
   float rawY = (leftSide? m_controllerState.Gamepad.sThumbLY :
                           m_controllerState.Gamepad.sThumbRY);
 
-  // Dead zone value that MS recommends.
-  float deadZone = (leftSide? XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE :
-                              XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+  // Dead zone size.  The exact shape depends on `leftSide`.
+  float deadZone = (leftSide? c_leftStickWalkThreshold :
+                              c_rightStickDeadZone);
+
+  // Absolute values for easier dead zone calculations.
+  float absX = std::abs(rawX);
+  float absY = std::abs(rawY);
 
   // Magnitude of deflection in the raw units.
-  float magnitude = std::sqrt(rawX*rawX + rawY*rawY);
+  float magnitude = std::sqrt(absX*absX + absY*absY);
 
-  if (magnitude > deadZone) {
+  // True if we are beyond the dead zone.
+  bool beyondDeadZone = leftSide?
+    // Octagon with radius `deadZone`.
+    std::max(absX, absY) > deadZone || (absX + absY) > deadZone * 1.5 :
+    // Square with radius `deadZone`.
+    std::max(absX, absY) > deadZone;
+
+  // How fast will we run (if this is the left stick)?
+  int speed =
+    magnitude > c_leftStickSprintThreshold? 3 :
+    magnitude > c_leftStickRunThreshold?    2 :
+                                            1 ;
+
+  if (beyondDeadZone) {
     // Truncate anything outside the circle.
     if (magnitude > 32767) {
       magnitude = 32767;
     }
 
     // Remove the dead zone contribution.
+    //
+    // This is probably not correct for Elden Ring.
+    //
     magnitude -= deadZone;
 
     // Scale what remains to [0,1].
@@ -707,7 +796,14 @@ void GVMainWindow::drawStick(
     // when the thumb is close to the center.
     float edgeX = 0.5 + std::cos(angleRadians) * c_stickMaxDeflectR;
     float edgeY = 0.5 + std::sin(angleRadians) * c_stickMaxDeflectR;
-    drawLine(transform, 0.5, 0.5, edgeX, edgeY);
+    drawLine(transform, 0.5, 0.5, edgeX, edgeY, false /*highlight*/);
+
+    if (leftSide) {
+      // Add 90 degrees to the angle because it is 0 when going right,
+      // but my chevron is oriented upward.
+      drawSpeedIndicator(transform, spotX, spotY,
+                         angleRadians + c_pi/2.0, speed);
+    }
   }
 
   WORD buttons = m_controllerState.Gamepad.wButtons;
@@ -718,6 +814,45 @@ void GVMainWindow::drawStick(
   if (buttons & mask) {
     drawCircle(transform, false /*fill*/);
   }
+}
+
+
+void GVMainWindow::drawSpeedIndicator(
+  D2D1_MATRIX_3X2_F transform,
+  float spotX,
+  float spotY,
+  float angleRadians,
+  int speed)
+{
+  // Focus on the thumb circle.
+  transform = focusPtR(spotX, spotY, c_stickThumbR) * transform;
+
+  // Turn the indicator to match the stick.
+  transform = rotateAroundCenterRad(angleRadians) * transform;
+
+  for (int i=0; i < speed; ++i) {
+    // [0], [0,1], or [-1,0,1].
+    int preliminary = i - (speed-1) / 2;
+
+    // If speed is 1, then 0.
+    // If speed is 2, then [-0.5,0.5].
+    // If speed is 3, then [-1,0,1].
+    float offset = preliminary - (speed%2 == 0? 0.5 : 0);
+
+    drawChevron(transform, offset * c_chevronSeparation);
+  }
+}
+
+
+void GVMainWindow::drawChevron(
+  D2D1_MATRIX_3X2_F transform,
+  float dy)
+{
+  bool const highlight = true;
+  drawLine(transform, 0.5 - c_chevronHR, 0.5 + c_chevronVR + dy,
+                      0.5,               0.5 - c_chevronVR + dy, highlight);
+  drawLine(transform, 0.5,               0.5 - c_chevronVR + dy,
+                      0.5 + c_chevronHR, 0.5 + c_chevronVR + dy, highlight);
 }
 
 
@@ -771,7 +906,11 @@ bool GVMainWindow::onKeyDown(WPARAM wParam, LPARAM lParam)
       return true;
 
     case 'C':
-      runColorChooser();
+      runColorChooser(false /*highlight*/);
+      return true;
+
+    case 'H':
+      runColorChooser(true /*highlight*/);
       return true;
 
     case 'S':
@@ -822,11 +961,12 @@ void GVMainWindow::createContextMenu()
     winapiDie(L"CreatePopupMenu");
   }
 
-  appendContextMenu(IDM_SET_LINE_COLOR, L"Set line color (C)");
-  appendContextMenu(IDM_TOGGLE_TEXT,    L"Toggle text display (S)");
-  appendContextMenu(IDM_TOGGLE_TOPMOST, L"Toggle topmost (T)");
-  appendContextMenu(IDM_SMALLER_WINDOW, L"Make display smaller (-)");
-  appendContextMenu(IDM_LARGER_WINDOW,  L"Make display larger (+)");
+  appendContextMenu(IDM_SET_LINE_COLOR,      L"Set line color (C)");
+  appendContextMenu(IDM_SET_HIGHLIGHT_COLOR, L"Set highlight color (H)");
+  appendContextMenu(IDM_TOGGLE_TEXT,         L"Toggle text display (S)");
+  appendContextMenu(IDM_TOGGLE_TOPMOST,      L"Toggle topmost (T)");
+  appendContextMenu(IDM_SMALLER_WINDOW,      L"Make display smaller (-)");
+  appendContextMenu(IDM_LARGER_WINDOW,       L"Make display larger (+)");
 }
 
 
@@ -880,7 +1020,11 @@ bool GVMainWindow::onCommand(WPARAM wParam, LPARAM lParam)
 
   switch (wParam) {
     case IDM_SET_LINE_COLOR:
-      runColorChooser();
+      runColorChooser(false /*highlight*/);
+      return true;
+
+    case IDM_SET_HIGHLIGHT_COLOR:
+      runColorChooser(true /*highlight*/);
       return true;
 
     case IDM_TOGGLE_TEXT:
@@ -904,14 +1048,18 @@ bool GVMainWindow::onCommand(WPARAM wParam, LPARAM lParam)
 }
 
 
-void GVMainWindow::runColorChooser()
+void GVMainWindow::runColorChooser(bool highlight)
 {
-  TRACE2(L"runColorChooser");
+  // Input/output color.
+  COLORREF &colorref =
+    highlight? m_highlightColorref : m_linesColorref;
+
+  TRACE2(L"runColorChooser:" << TRVAL(highlight));
   CHOOSECOLOR cc;
   ZeroMemory(&cc, sizeof(cc));
   cc.lStructSize = sizeof(cc);
   cc.hwndOwner = m_hwnd;
-  cc.rgbResult = m_linesColorref;
+  cc.rgbResult = colorref;
   cc.Flags = CC_RGBINIT | CC_FULLOPEN;
 
   // This is required even if we say CC_PREVENTFULLOPEN.
@@ -919,10 +1067,10 @@ void GVMainWindow::runColorChooser()
   cc.lpCustColors = (LPDWORD)customColors;
 
   if (ChooseColor(&cc)) {
-    m_linesColorref = cc.rgbResult;
-    int r = GetRValue(m_linesColorref);
-    int g = GetGValue(m_linesColorref);
-    int b = GetBValue(m_linesColorref);
+    colorref = cc.rgbResult;
+    int r = GetRValue(colorref);
+    int g = GetGValue(colorref);
+    int b = GetBValue(colorref);
     TRACE2(L"Got color:" <<
       TRVAL(r) <<
       TRVAL(g) <<
