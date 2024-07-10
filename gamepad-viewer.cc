@@ -1129,6 +1129,17 @@ void GVMainWindow::runColorChooser(bool highlight)
       TRVAL(g) <<
       TRVAL(b));
 
+    if (r == 0 && g == 0 && b == 0) {
+      // This isn't a great way to handle this situation, but it is
+      // better than just letting the window disappear entirely.
+      MessageBox(m_hwnd,
+        L"The color cannot be black because black is used as the "
+        L"transparency key color.",
+        L"Invalid choice",
+        MB_OK);
+      return;
+    }
+
     destroyLinesBrushes();
     createLinesBrushes();
     invalidateAllPixels();
