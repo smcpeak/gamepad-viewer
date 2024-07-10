@@ -68,6 +68,7 @@ enum {
   IDM_TOGGLE_TOPMOST,
   IDM_SMALLER_WINDOW,
   IDM_LARGER_WINDOW,
+  IDM_QUIT,
 };
 
 
@@ -969,6 +970,7 @@ void GVMainWindow::createContextMenu()
   appendContextMenu(IDM_TOGGLE_TOPMOST,      L"Toggle topmost (T)");
   appendContextMenu(IDM_SMALLER_WINDOW,      L"Make display smaller (-)");
   appendContextMenu(IDM_LARGER_WINDOW,       L"Make display larger (+)");
+  appendContextMenu(IDM_QUIT,                L"Quit (Q)");
 }
 
 
@@ -1043,6 +1045,10 @@ bool GVMainWindow::onCommand(WPARAM wParam, LPARAM lParam)
 
     case IDM_LARGER_WINDOW:
       resizeWindow(+50);
+      return true;
+
+    case IDM_QUIT:
+      PostMessage(m_hwnd, WM_CLOSE, 0, 0);
       return true;
   }
 
