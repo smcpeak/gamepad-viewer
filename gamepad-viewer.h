@@ -1,6 +1,8 @@
 // gamepad-viewer.h
 // `GVMainWindow` class, the main window class of the gamepad viewer.
 
+// See license.txt for copyright and terms of use.
+
 #ifndef GAMEPAD_VIEWER_H
 #define GAMEPAD_VIEWER_H
 

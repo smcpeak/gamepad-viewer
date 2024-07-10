@@ -1,6 +1,8 @@
 // winapi-util.h
 // Various winapi utilities.
 
+// See license.txt for copyright and terms of use.
+
 #ifndef WINAPI_UTIL_H
 #define WINAPI_UTIL_H
 

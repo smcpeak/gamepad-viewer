@@ -1,6 +1,8 @@
 // base-window.cc
 // Code for `base-window` module.
 
+// See license.txt for copyright and terms of use.
+
 #include "base-window.h"               // this module
 
 #include "winapi-util.h"               // winapiDie, CreateWindowExWArgs

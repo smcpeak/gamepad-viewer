@@ -1,6 +1,8 @@
 // base-window.h
 // `BaseWindow`, a base class for managing window state.
 
+// See license.txt for copyright and terms of use.
+
 // Loosely based on
 // https://learn.microsoft.com/en-us/windows/win32/learnwin32/managing-application-state-,
 // except using an ordinary class instead of a template.

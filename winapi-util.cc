@@ -1,6 +1,8 @@
 // winapi-util.cc
 // Code for `winapi-util` module.
 
+// See license.txt for copyright and terms of use.
+
 #include "winapi-util.h"               // this module
 
 #include <windows.h>                   // winapi

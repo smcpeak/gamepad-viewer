@@ -1,6 +1,8 @@
 // gamepad-viewer.cc
 // Program to show the current gamepad input state.
 
+// See license.txt for copyright and terms of use.
+
 #include "gamepad-viewer.h"            // this module
 
 #include "winapi-util.h"               // getLastErrorMessage, CreateWindowExWArgs
