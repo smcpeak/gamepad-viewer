@@ -63,6 +63,66 @@ enum {
 };
 
 
+// Constants used to control the size, shape, and position of the
+// controls in the UI.  I'm thinking to eventually put these into a
+// configuration file; defining them here is a first step.
+//
+// All of these are in [0,1], representing fractional distances of the
+// whole within either the whole UI or a parent button cluster.
+
+// Distance from top to center of face button cluster and center of
+// select/start cluster.
+float const c_faceButtonsY = 0.40;
+
+// Radius of face button clusters.
+float const c_faceButtonsR = 0.15;
+
+// Radius of one of the round face buttons.
+float const c_roundButtonR = 0.20;
+
+// Square radius of one of the dpad buttons.
+float const c_dpadButtonR = 0.15;
+
+// Distance from side to center of shoulder buttons.
+float const c_shoulderButtonsX = 0.15;
+
+// Radius of shoulder button cluster.
+float const c_shoulderButtonsR = 0.125;
+
+// Vertical radius of a bumper button within its shoulder cluster.
+float const c_bumperVR = 0.15;
+
+// Vertical radius of a trigger box within its shoulder cluster.
+float const c_triggerVR = 0.35;
+
+// Radius of each stick display cluster.
+float const c_stickR = 0.25;
+
+// Radius of the always-visible circle around the stick thumb.
+float const c_stickOutlineR = 0.4;
+
+// Maximum distance of the thumb from its center.
+float const c_stickMaxDeflectR = 0.3;
+
+// Radius of the filled circle representing the thumb.
+float const c_stickThumbR = 0.1;
+
+// Horizontal distance from the center line to the sel/start buttons.
+float const c_selStartX = 0.08;
+
+// Horizontal and vertical radii for sel/start.
+float const c_selStartHR = 0.05;
+float const c_selStartVR = 0.03;
+
+
+// Distance that `drawCircle` and `drawSquare` leave between the edge of
+// the circle and the edge of its nominal area.
+float const c_circleMargin = 0.1;
+
+// Width in pixels of the lines.
+float const c_lineWidthPixels = 3.0;
+
+
 GVMainWindow::GVMainWindow()
   : m_d2dFactory(nullptr),
     m_writeFactory(nullptr),
@@ -303,9 +363,9 @@ static D2D1_MATRIX_3X2_F focusArea(
 }
 
 
-// Create a transformation matrix centered on (x,y) with horizontal radius `hr` and
-// vertical radius `vr`.
-static D2D1_MATRIX_3X2_F focusPtWH(
+// Create a transformation matrix centered on (x,y) with horizontal
+// radius `hr` and vertical radius `vr`.
+static D2D1_MATRIX_3X2_F focusPtHVR(
   float x,
   float y,
   float hr,
@@ -322,7 +382,7 @@ static D2D1_MATRIX_3X2_F focusPtR(
   float y,
   float r)
 {
-  return focusPtWH(x, y, r, r);
+  return focusPtHVR(x, y, r, r);
 }
 
 
@@ -366,27 +426,39 @@ void GVMainWindow::drawControllerState()
     D2D1::Matrix3x2F::Scale(renderTargetSize.width, renderTargetSize.height);
 
   // Draw the round buttons.
-  drawRoundButtons(focusPtR(0.85, 0.40, 0.15) * baseTransform);
+  drawRoundButtons(
+    focusPtR(1.0 - c_faceButtonsR, c_faceButtonsY, c_faceButtonsR) *
+    baseTransform);
 
   // Draw the dpad.
-  drawDPadButtons(focusPtR(0.15, 0.40, 0.15) * baseTransform);
+  drawDPadButtons(
+    focusPtR(c_faceButtonsR, c_faceButtonsY, c_faceButtonsR) *
+    baseTransform);
 
   // Draw the shoulder buttons.
-  drawShoulderButtons(focusPtR(0.15, 0.125, 0.125) * baseTransform,
+  drawShoulderButtons(
+    focusPtR(c_shoulderButtonsX, c_shoulderButtonsR, c_shoulderButtonsR) * baseTransform,
     true /*left*/);
-  drawShoulderButtons(focusPtR(0.85, 0.125, 0.125) * baseTransform,
+  drawShoulderButtons(
+    focusPtR(1.0 - c_shoulderButtonsX, c_shoulderButtonsR, c_shoulderButtonsR) * baseTransform,
     false /*left*/);
 
   // Draw the sticks.
-  drawStick(focusPtR(0.25, 0.75, 0.25) * baseTransform,
+  drawStick(
+    focusPtR(c_stickR, 1.0 - c_stickR, c_stickR) * baseTransform,
     true /*left*/);
-  drawStick(focusPtR(0.75, 0.75, 0.25) * baseTransform,
+  drawStick(
+    focusPtR(1.0 - c_stickR, 1.0 - c_stickR, c_stickR) * baseTransform,
     false /*left*/);
 
   // Draw the select and start buttons.
-  drawSelStartButton(focusPtWH(0.42, 0.40, 0.05, 0.03) * baseTransform,
+  drawSelStartButton(
+    focusPtHVR(0.5 - c_selStartX, c_faceButtonsY,
+               c_selStartHR,      c_selStartVR)   * baseTransform,
     true /*left*/);
-  drawSelStartButton(focusPtWH(0.57, 0.40, 0.05, 0.03) * baseTransform,
+  drawSelStartButton(
+    focusPtHVR(0.5 + c_selStartX, c_faceButtonsY,
+               c_selStartHR,      c_selStartVR)   * baseTransform,
     false /*left*/);
 }
 
@@ -400,15 +472,15 @@ void GVMainWindow::drawCircle(
   D2D1_ELLIPSE circle;
   circle.point.x = 0.5;
   circle.point.y = 0.5;
-  circle.radiusX = 0.4;
-  circle.radiusY = 0.4;
+  circle.radiusX = 0.5 - c_circleMargin;
+  circle.radiusY = 0.5 - c_circleMargin;
 
   // Draw the outline always since the stroke width means the outer
   // edge is a bit larger than the filled ellipse.
   m_renderTarget->DrawEllipse(
     circle,
     m_linesBrush,
-    3.0,                               // strokeWidth in pixels
+    c_lineWidthPixels,                 // strokeWidth in pixels
     m_strokeStyleFixedThickness);      // strokeStyle
 
   if (fill) {
@@ -445,17 +517,17 @@ void GVMainWindow::drawPartiallyFilledSquare(
   m_renderTarget->SetTransform(transform);
 
   D2D1_RECT_F square;
-  square.left = 0.1;
-  square.top = 0.1;
-  square.right = 0.9;
-  square.bottom = 0.9;
+  square.left = c_circleMargin;
+  square.top = c_circleMargin;
+  square.right = 1.0 - c_circleMargin;
+  square.bottom = 1.0 - c_circleMargin;
 
   // Draw the outline always since the stroke width means the outer
   // edge is a bit larger than the filled ellipse.
   m_renderTarget->DrawRectangle(
     square,
     m_linesBrush,
-    3.0,                               // strokeWidth in pixels
+    c_lineWidthPixels,                 // strokeWidth
     m_strokeStyleFixedThickness);      // strokeStyle
 
   if (fillAmount > 0) {
@@ -481,7 +553,7 @@ void GVMainWindow::drawLine(
     D2D1::Point2F(x1, y1),
     D2D1::Point2F(x2, y2),
     m_linesBrush,
-    3.0,                     // strokeWidth,
+    c_lineWidthPixels,                 // strokeWidth,
     m_strokeStyleFixedThickness);      // strokeStyle
 }
 
@@ -500,7 +572,7 @@ void GVMainWindow::drawRoundButtons(
   };
 
   for (int i=0; i < 4; ++i) {
-    drawCircle(focusPtR(0.5, 0.2, 0.2) * transform,
+    drawCircle(focusPtR(0.5, c_roundButtonR, c_roundButtonR) * transform,
       buttons & masks[i]);
 
     // Rotate the transform 90 degrees around the center.
@@ -524,7 +596,7 @@ void GVMainWindow::drawDPadButtons(
   };
 
   for (int i=0; i < 4; ++i) {
-    drawSquare(focusPtR(0.5, 0.15, 0.15) * transform,
+    drawSquare(focusPtR(0.5, c_dpadButtonR, c_dpadButtonR) * transform,
       buttons & masks[i]);
 
     // Rotate the transform 90 degrees around the center.
@@ -543,7 +615,8 @@ void GVMainWindow::drawShoulderButtons(
                          XINPUT_GAMEPAD_RIGHT_SHOULDER);
 
   // Bumper.
-  drawSquare(focusPtWH(0.5, 0.85, 0.5, 0.15) * transform,
+  drawSquare(
+    focusPtHVR(0.5, 1.0 - c_bumperVR, 0.5, c_bumperVR) * transform,
     buttons & mask);
 
   BYTE trigger = (leftSide? m_controllerState.Gamepad.bLeftTrigger :
@@ -551,7 +624,8 @@ void GVMainWindow::drawShoulderButtons(
   float fillAmount = trigger / 255.0;
 
   // Trigger.
-  drawPartiallyFilledSquare(focusPtWH(0.5, 0.35, 0.5, 0.35) * transform,
+  drawPartiallyFilledSquare(
+    focusPtHVR(0.5, c_triggerVR, 0.5, c_triggerVR) * transform,
     fillAmount);
 }
 
@@ -561,7 +635,7 @@ void GVMainWindow::drawStick(
   bool leftSide)
 {
   // Outline.
-  drawCircleAt(transform, 0.5, 0.5, 0.4, false /*fill*/);
+  drawCircleAt(transform, 0.5, 0.5, c_stickOutlineR, false /*fill*/);
 
   // Raw stick position in [-32768,32767], positive being rightward.
   float rawX = (leftSide? m_controllerState.Gamepad.sThumbLX :
@@ -599,11 +673,11 @@ void GVMainWindow::drawStick(
     float deflectY = magnitude * std::sin(angleRadians);
 
     // Where to draw the end of the stick.
-    float spotX = 0.5 + deflectX * 0.3;
-    float spotY = 0.5 + deflectY * 0.3;
+    float spotX = 0.5 + deflectX * c_stickMaxDeflectR;
+    float spotY = 0.5 + deflectY * c_stickMaxDeflectR;
 
     // Filled circle representing the grippy part.
-    drawCircleAt(transform, spotX, spotY, 0.1, true /*fill*/);
+    drawCircleAt(transform, spotX, spotY, c_stickThumbR, true /*fill*/);
 
     // Line back to the center representing the shaft.
     drawLine(transform, 0.5, 0.5, spotX, spotY);
