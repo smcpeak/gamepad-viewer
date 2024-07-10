@@ -58,6 +58,8 @@ enum {
   IDM_SET_LINE_COLOR = 1,
   IDM_TOGGLE_TEXT = 2,
   IDM_TOGGLE_TOPMOST = 3,
+  IDM_SMALLER_WINDOW = 4,
+  IDM_LARGER_WINDOW = 5,
 };
 
 
@@ -627,6 +629,9 @@ void GVMainWindow::invalidateAllPixels()
 
 bool GVMainWindow::onKeyDown(WPARAM wParam, LPARAM lParam)
 {
+  TRACE2(L"onKeyDown:" << std::hex <<
+         TRVAL(wParam) << TRVAL(lParam) << std::dec);
+
   switch (wParam) {
     case 'Q':
       // Q to quit.
@@ -645,10 +650,37 @@ bool GVMainWindow::onKeyDown(WPARAM wParam, LPARAM lParam)
     case 'T':
       toggleTopmost();
       return true;
+
+    case VK_OEM_MINUS:
+      resizeWindow(-50);
+      return true;
+
+    case VK_OEM_PLUS:
+      resizeWindow(+50);
+      return true;
   }
 
   // Not handled.
   return false;
+}
+
+
+void GVMainWindow::resizeWindow(int delta)
+{
+  RECT r;
+  GetWindowRect(m_hwnd, &r);
+
+  int w = std::max(r.right - r.left + delta, 50L);
+  int h = std::max(r.bottom - r.top + delta, 50L);
+
+  TRACE2(L"resizeWindow:" << TRVAL(w) << TRVAL(h));
+
+  MoveWindow(m_hwnd,
+    r.left,
+    r.top,
+    w,
+    h,
+    false /*repaint*/);
 }
 
 
@@ -659,27 +691,21 @@ void GVMainWindow::createContextMenu()
     winapiDie(L"CreatePopupMenu");
   }
 
-  if (!AppendMenu(
-         m_contextMenu,
-         MF_STRING,
-         IDM_SET_LINE_COLOR,
-         L"Set line color (C)")) {
-    winapiDie(L"AppendMenu");
-  }
+  appendContextMenu(IDM_SET_LINE_COLOR, L"Set line color (C)");
+  appendContextMenu(IDM_TOGGLE_TEXT,    L"Toggle text display (S)");
+  appendContextMenu(IDM_TOGGLE_TOPMOST, L"Toggle topmost (T)");
+  appendContextMenu(IDM_SMALLER_WINDOW, L"Make window smaller (-)");
+  appendContextMenu(IDM_LARGER_WINDOW,  L"Make window larger (-)");
+}
 
-  if (!AppendMenu(
-         m_contextMenu,
-         MF_STRING,
-         IDM_TOGGLE_TEXT,
-         L"Toggle text display (S)")) {
-    winapiDie(L"AppendMenu");
-  }
 
+void GVMainWindow::appendContextMenu(int id, wchar_t const *label)
+{
   if (!AppendMenu(
          m_contextMenu,
          MF_STRING,
-         IDM_TOGGLE_TOPMOST,
-         L"Toggle topmost (T)")) {
+         id,
+         label)) {
     winapiDie(L"AppendMenu");
   }
 }
@@ -730,6 +756,14 @@ bool GVMainWindow::onCommand(WPARAM wParam, LPARAM lParam)
 
     case IDM_TOGGLE_TOPMOST:
       toggleTopmost();
+      return true;
+
+    case IDM_SMALLER_WINDOW:
+      resizeWindow(-50);
+      return true;
+
+    case IDM_LARGER_WINDOW:
+      resizeWindow(+50);
       return true;
   }
 

@@ -152,8 +152,12 @@ public:      // methods
   // Handle `WM_KEYDOWN`.  Return true if handled.
   bool onKeyDown(WPARAM wParam, LPARAM lParam);
 
+  // Resize the window by `delta` pixels in both directions.
+  void resizeWindow(int delta);
+
   // Create/destroy `m_contextMenu`.
   void createContextMenu();
+  void appendContextMenu(int id, wchar_t const *label);
   void destroyContextMenu();
 
   // Handle `WM_CONTEXTMENU`.  The mouse was clicked at (x,y) in client
