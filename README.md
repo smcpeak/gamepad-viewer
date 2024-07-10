@@ -65,6 +65,17 @@ context menu also shows the key bindings.
 See [todo.txt](todo.txt) for minor issues, enhancements, etc.
 
 
+## Diagnostic environment variables
+
+If `TRANSPARENT` is set to 0, the transparent window mechanism is
+disabled and the solid black background normally used as the
+transparency key becomes visible.
+
+If `TRACE` is set to a number greater than 1, various tracing messages
+are printed.  2 is low-volume, 3 is somewhat higher volume.  1 (the
+default) prints possible some errors that aren't otherwise reported.
+
+
 ## License
 
 The MIT License
