@@ -60,6 +60,9 @@ public:      // data
   // If true, then we are moving the window by mouse dragging.
   bool m_movingWindow;
 
+  // If true, show the textual display of the controller inputs.
+  bool m_showText;
+
 public:      // methods
   GVMainWindow();
 
@@ -158,6 +161,9 @@ public:      // methods
 
   // Show the dialog that lets the user pick the lines color.
   void runColorChooser();
+
+  // Toggle whether we show the text.
+  void toggleShowText();
 
   // BaseWindow methods.
   virtual LRESULT handleMessage(

@@ -56,6 +56,7 @@ bool g_useTransparency = true;
 // Menu item identifiers.
 enum {
   IDM_SET_LINE_COLOR = 1,
+  IDM_TOGGLE_TEXT = 2,
 };
 
 
@@ -72,7 +73,8 @@ GVMainWindow::GVMainWindow()
     m_controllerState(),
     m_hasControllerState(false),
     m_lastDragPoint{},
-    m_movingWindow(false)
+    m_movingWindow(false),
+    m_showText(false)
 {
   // I'm not sure if the default ctor initializes this.
   std::memset(&m_controllerState, 0, sizeof(m_controllerState));
@@ -299,30 +301,32 @@ static D2D1_MATRIX_3X2_F focusArea(
 
 void GVMainWindow::drawControllerState()
 {
-  std::wostringstream oss;
-
-  XINPUT_STATE const &i = m_controllerState;
-  XINPUT_GAMEPAD const &g = i.Gamepad;
-
-  oss << L"hasState: " << m_hasControllerState << L"\n";
-  oss << L"packet: " << i.dwPacketNumber << L"\n";
-  oss << L"buttons: " << std::hex << g.wButtons << std::dec << L"\n";
-  oss << L"leftTrigger: " << +g.bLeftTrigger << L"\n";
-  oss << L"rightTrigger: " << +g.bRightTrigger << L"\n";
-  oss << L"thumbLX: " << g.sThumbLX << L"\n";
-  oss << L"thumbLY: " << g.sThumbLY << L"\n";
-  oss << L"thumbRX: " << g.sThumbRX << L"\n";
-  oss << L"thumbRY: " << g.sThumbRY << L"\n";
-
   D2D1_SIZE_F renderTargetSize = m_renderTarget->GetSize();
 
-  std::wstring s = oss.str();
-  m_renderTarget->DrawText(
-    s.data(),
-    s.size(),
-    m_textFormat,
-    D2D1::RectF(150, 10, renderTargetSize.width, renderTargetSize.height),
-    m_textBrush);
+  if (m_showText) {
+    std::wostringstream oss;
+
+    XINPUT_STATE const &i = m_controllerState;
+    XINPUT_GAMEPAD const &g = i.Gamepad;
+
+    oss << L"hasState: " << m_hasControllerState << L"\n";
+    oss << L"packet: " << i.dwPacketNumber << L"\n";
+    oss << L"buttons: " << std::hex << g.wButtons << std::dec << L"\n";
+    oss << L"leftTrigger: " << +g.bLeftTrigger << L"\n";
+    oss << L"rightTrigger: " << +g.bRightTrigger << L"\n";
+    oss << L"thumbLX: " << g.sThumbLX << L"\n";
+    oss << L"thumbLY: " << g.sThumbLY << L"\n";
+    oss << L"thumbRX: " << g.sThumbRX << L"\n";
+    oss << L"thumbRY: " << g.sThumbRY << L"\n";
+
+    std::wstring s = oss.str();
+    m_renderTarget->DrawText(
+      s.data(),
+      s.size(),
+      m_textFormat,
+      D2D1::RectF(150, 10, renderTargetSize.width, renderTargetSize.height),
+      m_textBrush);
+  }
 
   if (!( renderTargetSize.width > 0 && renderTargetSize.height > 0 )) {
     // Bail if the sizes are zero.
@@ -631,6 +635,10 @@ bool GVMainWindow::onKeyDown(WPARAM wParam, LPARAM lParam)
     case 'C':
       runColorChooser();
       return true;
+
+    case 'T':
+      toggleShowText();
+      return true;
   }
 
   // Not handled.
@@ -649,7 +657,15 @@ void GVMainWindow::createContextMenu()
          m_contextMenu,
          MF_STRING,
          IDM_SET_LINE_COLOR,
-         L"Set line color")) {
+         L"Set line &color")) {
+    winapiDie(L"AppendMenu");
+  }
+
+  if (!AppendMenu(
+         m_contextMenu,
+         MF_STRING,
+         IDM_TOGGLE_TEXT,
+         L"&Toggle text display")) {
     winapiDie(L"AppendMenu");
   }
 }
@@ -689,9 +705,14 @@ bool GVMainWindow::onCommand(WPARAM wParam, LPARAM lParam)
   TRACE2(L"onCommand:" << std::hex <<
          TRVAL(wParam) << TRVAL(lParam) << std::dec);
 
-  if (wParam == IDM_SET_LINE_COLOR) {
-    runColorChooser();
-    return true;
+  switch (wParam) {
+    case IDM_SET_LINE_COLOR:
+      runColorChooser();
+      return true;
+
+    case IDM_TOGGLE_TEXT:
+      toggleShowText();
+      return true;
   }
 
   return false;
@@ -726,6 +747,13 @@ void GVMainWindow::runColorChooser()
     createLinesBrushes();
     invalidateAllPixels();
   }
+}
+
+
+void GVMainWindow::toggleShowText()
+{
+  m_showText = !m_showText;
+  invalidateAllPixels();
 }
 
 
