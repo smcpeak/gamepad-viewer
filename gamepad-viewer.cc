@@ -303,6 +303,29 @@ static D2D1_MATRIX_3X2_F focusArea(
 }
 
 
+// Create a transformation matrix centered on (x,y) with horizontal radius `hr` and
+// vertical radius `vr`.
+static D2D1_MATRIX_3X2_F focusPtWH(
+  float x,
+  float y,
+  float hr,
+  float vr)
+{
+  return focusArea(x - hr, y - vr,
+                   x + hr, y + vr);
+}
+
+// Create a transformation matrix centered on (x,y) with square radius
+// `r`.
+static D2D1_MATRIX_3X2_F focusPtR(
+  float x,
+  float y,
+  float r)
+{
+  return focusPtWH(x, y, r, r);
+}
+
+
 void GVMainWindow::drawControllerState()
 {
   D2D1_SIZE_F renderTargetSize = m_renderTarget->GetSize();
@@ -343,27 +366,27 @@ void GVMainWindow::drawControllerState()
     D2D1::Matrix3x2F::Scale(renderTargetSize.width, renderTargetSize.height);
 
   // Draw the round buttons.
-  drawRoundButtons(focusArea(0.70, 0.25, 1.0, 0.55) * baseTransform);
+  drawRoundButtons(focusPtR(0.85, 0.40, 0.15) * baseTransform);
 
   // Draw the dpad.
-  drawDPadButtons(focusArea(0.0, 0.25, 0.3, 0.55) * baseTransform);
+  drawDPadButtons(focusPtR(0.15, 0.40, 0.15) * baseTransform);
 
   // Draw the shoulder buttons.
-  drawShoulderButtons(focusArea(0.0, 0.0, 0.3, 0.25) * baseTransform,
+  drawShoulderButtons(focusPtR(0.15, 0.125, 0.125) * baseTransform,
     true /*left*/);
-  drawShoulderButtons(focusArea(0.7, 0.0, 1.0, 0.25) * baseTransform,
+  drawShoulderButtons(focusPtR(0.85, 0.125, 0.125) * baseTransform,
     false /*left*/);
 
   // Draw the sticks.
-  drawStick(focusArea(0.0, 0.5, 0.5, 1.0) * baseTransform,
+  drawStick(focusPtR(0.25, 0.75, 0.25) * baseTransform,
     true /*left*/);
-  drawStick(focusArea(0.5, 0.5, 1.0, 1.0) * baseTransform,
+  drawStick(focusPtR(0.75, 0.75, 0.25) * baseTransform,
     false /*left*/);
 
   // Draw the select and start buttons.
-  drawSelStartButton(focusArea(0.37, 0.37, 0.47, 0.43) * baseTransform,
+  drawSelStartButton(focusPtWH(0.42, 0.40, 0.05, 0.03) * baseTransform,
     true /*left*/);
-  drawSelStartButton(focusArea(0.52, 0.37, 0.62, 0.43) * baseTransform,
+  drawSelStartButton(focusPtWH(0.57, 0.40, 0.05, 0.03) * baseTransform,
     false /*left*/);
 }
 
@@ -477,7 +500,7 @@ void GVMainWindow::drawRoundButtons(
   };
 
   for (int i=0; i < 4; ++i) {
-    drawCircle(focusArea(0.3, 0, 0.7, 0.4) * transform,
+    drawCircle(focusPtR(0.5, 0.2, 0.2) * transform,
       buttons & masks[i]);
 
     // Rotate the transform 90 degrees around the center.
@@ -501,7 +524,7 @@ void GVMainWindow::drawDPadButtons(
   };
 
   for (int i=0; i < 4; ++i) {
-    drawSquare(focusArea(0.35, 0, 0.65, 0.3) * transform,
+    drawSquare(focusPtR(0.5, 0.15, 0.15) * transform,
       buttons & masks[i]);
 
     // Rotate the transform 90 degrees around the center.
@@ -520,7 +543,7 @@ void GVMainWindow::drawShoulderButtons(
                          XINPUT_GAMEPAD_RIGHT_SHOULDER);
 
   // Bumper.
-  drawSquare(focusArea(0.0, 0.7, 1.0, 1.0) * transform,
+  drawSquare(focusPtWH(0.5, 0.85, 0.5, 0.15) * transform,
     buttons & mask);
 
   BYTE trigger = (leftSide? m_controllerState.Gamepad.bLeftTrigger :
@@ -528,7 +551,7 @@ void GVMainWindow::drawShoulderButtons(
   float fillAmount = trigger / 255.0;
 
   // Trigger.
-  drawPartiallyFilledSquare(focusArea(0.0, 0.0, 1.0, 0.7) * transform,
+  drawPartiallyFilledSquare(focusPtWH(0.5, 0.35, 0.5, 0.35) * transform,
     fillAmount);
 }
 
