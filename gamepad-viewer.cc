@@ -661,7 +661,7 @@ void GVMainWindow::drawStick(
     // Remove the dead zone contribution.
     magnitude -= deadZone;
 
-    // Scale what remains.
+    // Scale what remains to [0,1].
     magnitude = magnitude / (32767 - deadZone);
 
     // Deflection angle.  Flip the Y coordinate here to account for the
@@ -672,15 +672,16 @@ void GVMainWindow::drawStick(
     float deflectX = magnitude * std::cos(angleRadians);
     float deflectY = magnitude * std::sin(angleRadians);
 
-    // Where to draw the end of the stick.
+    // Filled circle representing the grippy part.
     float spotX = 0.5 + deflectX * c_stickMaxDeflectR;
     float spotY = 0.5 + deflectY * c_stickMaxDeflectR;
-
-    // Filled circle representing the grippy part.
     drawCircleAt(transform, spotX, spotY, c_stickThumbR, true /*fill*/);
 
-    // Line back to the center representing the shaft.
-    drawLine(transform, 0.5, 0.5, spotX, spotY);
+    // Line from center to circle showing the deflection angle, even
+    // when the thumb is close to the center.
+    float edgeX = 0.5 + std::cos(angleRadians) * c_stickMaxDeflectR;
+    float edgeY = 0.5 + std::sin(angleRadians) * c_stickMaxDeflectR;
+    drawLine(transform, 0.5, 0.5, edgeX, edgeY);
   }
 
   WORD buttons = m_controllerState.Gamepad.wButtons;
