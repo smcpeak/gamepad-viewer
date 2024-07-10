@@ -17,6 +17,16 @@ public:      // data
   // Color to use to draw the lines.
   COLORREF m_linesColorref;
 
+  // Color to use to draw the highlights.
+  COLORREF m_highlightColorref;
+
+  // If true, show the textual display of the controller inputs.
+  bool m_showText;
+
+  // If true, set our window to be on top of all others (that are not
+  // also topmost).
+  bool m_topmostWindow;
+
 public:      // methods
   // Initialize with defaults.
   GPVConfig();

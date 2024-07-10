@@ -184,7 +184,6 @@ GVMainWindow::GVMainWindow()
     m_textFormat(nullptr),
     m_strokeStyleFixedThickness(nullptr),
     m_contextMenu(nullptr),
-    m_highlightColorref(RGB(53, 53, 242)),   // Dark blue, almost purple.
     m_renderTarget(nullptr),
     m_textBrush(nullptr),
     m_linesBrush(nullptr),
@@ -193,9 +192,7 @@ GVMainWindow::GVMainWindow()
     m_controllerState(),
     m_hasControllerState(false),
     m_lastDragPoint{},
-    m_movingWindow(false),
-    m_showText(false),
-    m_topmostWindow(false)
+    m_movingWindow(false)
 {
   // I'm not sure if the default ctor initializes this.
   std::memset(&m_controllerState, 0, sizeof(m_controllerState));
@@ -345,7 +342,7 @@ void GVMainWindow::createLinesBrushes()
     linesColor,
     &m_linesBrush);
 
-  D2D1_COLOR_F highlightColor = COLORREF_to_ColorF(m_highlightColorref);
+  D2D1_COLOR_F highlightColor = COLORREF_to_ColorF(m_config.m_highlightColorref);
   CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
     highlightColor,
     &m_highlightBrush);
@@ -453,7 +450,7 @@ void GVMainWindow::drawControllerState()
 {
   D2D1_SIZE_F renderTargetSize = m_renderTarget->GetSize();
 
-  if (m_showText) {
+  if (m_config.m_showText) {
     std::wostringstream oss;
 
     XINPUT_STATE const &i = m_controllerState;
@@ -1061,7 +1058,7 @@ void GVMainWindow::runColorChooser(bool highlight)
 {
   // Input/output color.
   COLORREF &colorref =
-    highlight? m_highlightColorref : m_config.m_linesColorref;
+    highlight? m_config.m_highlightColorref : m_config.m_linesColorref;
 
   TRACE2(L"runColorChooser:" << TRVAL(highlight));
   CHOOSECOLOR cc;
@@ -1094,19 +1091,25 @@ void GVMainWindow::runColorChooser(bool highlight)
 
 void GVMainWindow::toggleShowText()
 {
-  m_showText = !m_showText;
+  m_config.m_showText = !m_config.m_showText;
   invalidateAllPixels();
 }
 
 
 void GVMainWindow::toggleTopmost()
 {
-  m_topmostWindow = !m_topmostWindow;
-  TRACE2(L"toggleTopmost: now " << m_topmostWindow);
+  m_config.m_topmostWindow = !m_config.m_topmostWindow;
+  TRACE2(L"toggleTopmost: now " << m_config.m_topmostWindow);
 
+  setTopmost(m_config.m_topmostWindow);
+}
+
+
+void GVMainWindow::setTopmost(bool tm)
+{
   if (!SetWindowPos(
          m_hwnd,
-         m_topmostWindow? HWND_TOPMOST : HWND_NOTOPMOST,
+         tm? HWND_TOPMOST : HWND_NOTOPMOST,
          0,0,0,0,                      // New pos/size, ignored.
          SWP_NOMOVE | SWP_NOSIZE)) {   // Ignore pos/size.
     winapiDie(L"SetWindowPos");
@@ -1161,6 +1164,10 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
   switch (uMsg) {
     case WM_CREATE: {
       loadConfiguration();
+
+      if (m_config.m_topmostWindow) {
+        setTopmost(true);
+      }
 
       if (g_useTransparency) {
         // Arrange to treat purple as transparent.

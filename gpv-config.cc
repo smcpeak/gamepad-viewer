@@ -18,7 +18,10 @@ using json::JSON;
 
 
 GPVConfig::GPVConfig()
-  : m_linesColorref(RGB(118, 235, 220))          // Pastel cyan.
+  : m_linesColorref(RGB(118, 235, 220)),         // Pastel cyan.
+    m_highlightColorref(RGB(53, 53, 242)),       // Dark blue, almost purple.
+    m_showText(false),
+    m_topmostWindow(false)
 {}
 
 
@@ -61,9 +64,20 @@ std::string GPVConfig::loadFromFile(std::string const &fname)
   // This merely reports errors to stderr...
   JSON obj = JSON::Load(oss.str());
 
-  if (obj.hasKey("linesColorRGB")) {
-    m_linesColorref = COLORREF_from_JSON(obj["linesColorRGB"]);
-  }
+  // Load `field` from `key`.  `expr` is an expression that refers to
+  // `data`, the JSON object at `key`.
+  #define LOAD_FIELD(key, field, expr) \
+    if (obj.hasKey(key)) {             \
+      JSON const &data = obj[key];     \
+      field = (expr);                  \
+    }
+
+  LOAD_FIELD("linesColorRGB", m_linesColorref, COLORREF_from_JSON(data));
+  LOAD_FIELD("highlightColorRGB", m_highlightColorref, COLORREF_from_JSON(data));
+  LOAD_FIELD("showText", m_showText, data.ToBool());
+  LOAD_FIELD("topmostWindow", m_topmostWindow, data.ToBool());
+
+  #undef LOAD_FIELD
 
   return "";
 }
@@ -74,6 +88,9 @@ std::string GPVConfig::saveToFile(std::string const &fname) const
   JSON obj = json::Object();
 
   obj["linesColorRGB"] = COLORREF_to_JSON(m_linesColorref);
+  obj["highlightColorRGB"] = COLORREF_to_JSON(m_highlightColorref);
+  obj["showText"] = JSON(m_showText);
+  obj["topmostWindow"] = JSON(m_topmostWindow);
 
   std::string serialized = obj.dump();
 
