@@ -40,6 +40,7 @@ OBJS :=
 OBJS += base-window.o
 OBJS += gamepad-viewer.o
 OBJS += gpv-config.o
+OBJS += resources.o
 OBJS += winapi-util.o
 
 
@@ -47,6 +48,9 @@ OBJS += winapi-util.o
 
 %.o: %.cc
 	$(CXX) -c -o $@ $(CXXFLAGS) $<
+
+resources.o: gamepad-viewer.rc doc/icon.ico
+	windres -o $@ $<
 
 gamepad-viewer.exe: $(OBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(OBJS) $(LIBS)

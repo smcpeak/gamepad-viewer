@@ -1244,6 +1244,13 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
         setTopmost(true);
       }
 
+      // Set the window icon.
+      {
+        HICON icon = LoadIcon(GetModuleHandle(nullptr), MAKEINTRESOURCE(1));
+        SendMessage(m_hwnd, WM_SETICON, ICON_SMALL, (LPARAM)icon);
+        SendMessage(m_hwnd, WM_SETICON, ICON_BIG, (LPARAM)icon);
+      }
+
       if (g_useTransparency) {
         // Arrange to treat purple as transparent.
         //

@@ -2,7 +2,6 @@
 TODO:
   - fix: antialiasing causes a black border
   - configurable whether to use transparency
-  - add an icon
 
 
 EOF
