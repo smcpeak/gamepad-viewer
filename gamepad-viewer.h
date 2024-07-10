@@ -164,7 +164,7 @@ public:      // methods
   // Cause a repaint event that will redraw the entire window.
   void invalidateAllPixels();
 
-  // Handle `WM_SIZE`.
+  // Handle `WM_SIZE` or `WM_WINDOWPOSCHANGED` with a new size.
   void onResize();
 
   // Handle `WM_KEYDOWN`.  Return true if handled.
@@ -211,6 +211,9 @@ public:      // methods
   // Attempt to write the current configuration to the file.  On error,
   // print a tracing message but keep going.
   void saveConfiguration() const;
+
+  // Handle `WM_WINDOWPOSCHANGED`.
+  void onWindowPosChanged(WINDOWPOS const *wp);
 
   // BaseWindow methods.
   virtual LRESULT handleMessage(

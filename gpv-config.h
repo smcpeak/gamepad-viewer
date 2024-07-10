@@ -27,6 +27,12 @@ public:      // data
   // also topmost).
   bool m_topmostWindow;
 
+  // Window dimensions.
+  int m_windowLeft;
+  int m_windowTop;
+  int m_windowWidth;
+  int m_windowHeight;
+
 public:      // methods
   // Initialize with defaults.
   GPVConfig();

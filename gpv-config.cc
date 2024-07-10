@@ -21,7 +21,11 @@ GPVConfig::GPVConfig()
   : m_linesColorref(RGB(118, 235, 220)),         // Pastel cyan.
     m_highlightColorref(RGB(53, 53, 242)),       // Dark blue, almost purple.
     m_showText(false),
-    m_topmostWindow(false)
+    m_topmostWindow(false),
+    m_windowLeft(50),
+    m_windowTop(300),
+    m_windowWidth(400),
+    m_windowHeight(400)
 {}
 
 
@@ -72,12 +76,21 @@ std::string GPVConfig::loadFromFile(std::string const &fname)
       field = (expr);                  \
     }
 
+  // For when the key and field names are related in the usual way.
+  #define LOAD_KEY_FIELD(name, expr) \
+    LOAD_FIELD(#name, m_##name, expr)
+
   LOAD_FIELD("linesColorRGB", m_linesColorref, COLORREF_from_JSON(data));
   LOAD_FIELD("highlightColorRGB", m_highlightColorref, COLORREF_from_JSON(data));
-  LOAD_FIELD("showText", m_showText, data.ToBool());
-  LOAD_FIELD("topmostWindow", m_topmostWindow, data.ToBool());
+  LOAD_KEY_FIELD(showText, data.ToBool());
+  LOAD_KEY_FIELD(topmostWindow, data.ToBool());
+  LOAD_KEY_FIELD(windowLeft, data.ToInt());
+  LOAD_KEY_FIELD(windowTop, data.ToInt());
+  LOAD_KEY_FIELD(windowWidth, data.ToInt());
+  LOAD_KEY_FIELD(windowHeight, data.ToInt());
 
   #undef LOAD_FIELD
+  #undef LOAD_KEY_FIELD
 
   return "";
 }
@@ -89,8 +102,20 @@ std::string GPVConfig::saveToFile(std::string const &fname) const
 
   obj["linesColorRGB"] = COLORREF_to_JSON(m_linesColorref);
   obj["highlightColorRGB"] = COLORREF_to_JSON(m_highlightColorref);
-  obj["showText"] = JSON(m_showText);
-  obj["topmostWindow"] = JSON(m_topmostWindow);
+
+  // Save a field where converting to JSON only requires invoking one of
+  // the `JSON` constructors.
+  #define SAVE_KEY_FIELD_CTOR(name) \
+    obj[#name] = JSON(m_##name) /* user ; */
+
+  SAVE_KEY_FIELD_CTOR(showText);
+  SAVE_KEY_FIELD_CTOR(topmostWindow);
+  SAVE_KEY_FIELD_CTOR(windowLeft);
+  SAVE_KEY_FIELD_CTOR(windowTop);
+  SAVE_KEY_FIELD_CTOR(windowWidth);
+  SAVE_KEY_FIELD_CTOR(windowHeight);
+
+  #undef SAVE_KEY_FIELD_CTOR
 
   std::string serialized = obj.dump();
 

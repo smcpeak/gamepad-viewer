@@ -33,7 +33,9 @@ float const c_pi = 3.1415926535897932384626433832795;
 //
 //   1: API call failures.
 //
-//   2: Information about messages, etc., of a moderate volume.
+//   2: Information about messages, etc., of low volume.
+//
+//   3: Higher-volume messages, e.g., relating to mouse movement.
 //
 // The default value is not used, as `wWinMain` overwrites it.
 //
@@ -55,6 +57,7 @@ bool g_useTransparency = true;
 
 #define TRACE1(msg) TRACE(1, msg)
 #define TRACE2(msg) TRACE(2, msg)
+#define TRACE3(msg) TRACE(3, msg)
 
 // Add the value of `expr` to a chain of outputs using `<<`.
 #define TRVAL(expr) L" " WIDE_STRINGIZE(expr) L"=" << (expr)
@@ -196,6 +199,8 @@ GVMainWindow::GVMainWindow()
 {
   // I'm not sure if the default ctor initializes this.
   std::memset(&m_controllerState, 0, sizeof(m_controllerState));
+
+  loadConfiguration();
 }
 
 
@@ -1158,13 +1163,41 @@ void GVMainWindow::saveConfiguration() const
 }
 
 
+void GVMainWindow::onWindowPosChanged(WINDOWPOS const *wp)
+{
+  bool changedSize =
+    (m_config.m_windowWidth != wp->cx) ||
+    (m_config.m_windowHeight != wp->cy);
+
+  TRACE3("onWindowPosChanged: before:" <<
+         TRVAL(m_config.m_windowLeft) <<
+         TRVAL(m_config.m_windowTop) <<
+         TRVAL(m_config.m_windowWidth) <<
+         TRVAL(m_config.m_windowHeight) <<
+         TRVAL(changedSize));
+
+  m_config.m_windowLeft   = wp->x;
+  m_config.m_windowTop    = wp->y;
+  m_config.m_windowWidth  = wp->cx;
+  m_config.m_windowHeight = wp->cy;
+
+  TRACE3("onWindowPosChanged: after:" <<
+         TRVAL(m_config.m_windowLeft) <<
+         TRVAL(m_config.m_windowTop) <<
+         TRVAL(m_config.m_windowWidth) <<
+         TRVAL(m_config.m_windowHeight));
+
+  if (changedSize) {
+    onResize();
+  }
+}
+
+
 LRESULT CALLBACK GVMainWindow::handleMessage(
   UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg) {
     case WM_CREATE: {
-      loadConfiguration();
-
       if (m_config.m_topmostWindow) {
         setTopmost(true);
       }
@@ -1224,10 +1257,6 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
 
     case WM_PAINT:
       onPaint();
-      return 0;
-
-    case WM_SIZE:
-      onResize();
       return 0;
 
     case WM_KEYDOWN:
@@ -1295,6 +1324,13 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
         return 0;
       }
       break;
+
+    case WM_WINDOWPOSCHANGED:
+      onWindowPosChanged(reinterpret_cast<WINDOWPOS const *>(lParam));
+
+      // Note: Returning 0 here means our window will not receive
+      // `WM_SIZE` or `WM_MOVE` messages.
+      return 0;
   }
 
   return BaseWindow::handleMessage(uMsg, wParam, lParam);
@@ -1327,18 +1363,20 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   // Configure transparency, with default of true.
   g_useTransparency = envIntOr("TRANSPARENT", 1) != 0;
 
+  // Load the configuration file if it exists.
+  GVMainWindow mainWindow;
+
   // Create the window.
   CreateWindowExWArgs cw;
   if (g_useTransparency) {
     cw.m_dwExStyle = WS_EX_LAYERED;    // For `SetLayeredWindowAttributes`.
   }
   cw.m_lpWindowName = L"Gamepad Viewer";
-  cw.m_x = 50;
-  cw.m_y = 300;
-  cw.m_nWidth = cw.m_nHeight = 400;
+  cw.m_x       = mainWindow.m_config.m_windowLeft;
+  cw.m_y       = mainWindow.m_config.m_windowTop;
+  cw.m_nWidth  = mainWindow.m_config.m_windowWidth;
+  cw.m_nHeight = mainWindow.m_config.m_windowHeight;
   cw.m_dwStyle = WS_POPUP;
-
-  GVMainWindow mainWindow;
   mainWindow.createWindow(cw);
 
   TRACE2(L"Calling ShowWindow");
