@@ -33,6 +33,9 @@ public:      // data
   int m_windowWidth;
   int m_windowHeight;
 
+  // Milliseconds between attempts to poll the controller.
+  int m_pollingIntervalMS;
+
 public:      // methods
   // Initialize with defaults.
   GPVConfig();

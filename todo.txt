@@ -1,9 +1,7 @@
 
 TODO:
-  - save configuration to a file
-  - configurable startup size and location
   - fix: antialiasing causes a black border
-  - adjustable polling interval
+  - adjustable controller ID
   - configurable whether to use transparency
   - add an icon
 

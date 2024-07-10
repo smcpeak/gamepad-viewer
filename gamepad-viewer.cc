@@ -1230,7 +1230,8 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
       }
 
       // Create a timer for polling the controller.
-      UINT_PTR id = SetTimer(m_hwnd, 1, 16 /*ms*/, nullptr /*proc*/);
+      UINT_PTR id =
+        SetTimer(m_hwnd, 1, m_config.m_pollingIntervalMS, nullptr /*proc*/);
       if (!id) {
         winapiDie(L"SetTimer");
       }

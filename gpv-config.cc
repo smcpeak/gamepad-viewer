@@ -25,7 +25,8 @@ GPVConfig::GPVConfig()
     m_windowLeft(50),
     m_windowTop(300),
     m_windowWidth(400),
-    m_windowHeight(400)
+    m_windowHeight(400),
+    m_pollingIntervalMS(16)                      // ~60 FPS
 {}
 
 
@@ -88,6 +89,7 @@ std::string GPVConfig::loadFromFile(std::string const &fname)
   LOAD_KEY_FIELD(windowTop, data.ToInt());
   LOAD_KEY_FIELD(windowWidth, data.ToInt());
   LOAD_KEY_FIELD(windowHeight, data.ToInt());
+  LOAD_KEY_FIELD(pollingIntervalMS, data.ToInt());
 
   #undef LOAD_FIELD
   #undef LOAD_KEY_FIELD
@@ -114,6 +116,7 @@ std::string GPVConfig::saveToFile(std::string const &fname) const
   SAVE_KEY_FIELD_CTOR(windowTop);
   SAVE_KEY_FIELD_CTOR(windowWidth);
   SAVE_KEY_FIELD_CTOR(windowHeight);
+  SAVE_KEY_FIELD_CTOR(pollingIntervalMS);
 
   #undef SAVE_KEY_FIELD_CTOR
 
