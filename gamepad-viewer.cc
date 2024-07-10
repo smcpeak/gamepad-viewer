@@ -812,8 +812,8 @@ void GVMainWindow::createContextMenu()
   appendContextMenu(IDM_SET_LINE_COLOR, L"Set line color (C)");
   appendContextMenu(IDM_TOGGLE_TEXT,    L"Toggle text display (S)");
   appendContextMenu(IDM_TOGGLE_TOPMOST, L"Toggle topmost (T)");
-  appendContextMenu(IDM_SMALLER_WINDOW, L"Make window smaller (-)");
-  appendContextMenu(IDM_LARGER_WINDOW,  L"Make window larger (-)");
+  appendContextMenu(IDM_SMALLER_WINDOW, L"Make display smaller (-)");
+  appendContextMenu(IDM_LARGER_WINDOW,  L"Make display larger (+)");
 }
 
 
