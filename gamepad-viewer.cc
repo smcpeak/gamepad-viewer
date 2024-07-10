@@ -501,7 +501,7 @@ void GVMainWindow::drawDPadButtons(
   };
 
   for (int i=0; i < 4; ++i) {
-    drawSquare(focusArea(0.3, 0, 0.7, 0.4) * transform,
+    drawSquare(focusArea(0.35, 0, 0.65, 0.3) * transform,
       buttons & masks[i]);
 
     // Rotate the transform 90 degrees around the center.
