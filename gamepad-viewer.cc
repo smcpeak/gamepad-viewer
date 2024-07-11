@@ -75,6 +75,7 @@ enum {
   IDM_CONTROLLER_1,
   IDM_CONTROLLER_2,
   IDM_CONTROLLER_3,
+  IDM_ABOUT,
   IDM_QUIT,
 };
 
@@ -924,7 +925,15 @@ void GVMainWindow::createContextMenu()
     (UINT_PTR)m_controllerIDMenu,
     L"Controller");
 
-  appendContextMenu(IDM_QUIT,                L"Quit (Q)");
+  CALL_BOOL_WINAPI(AppendMenu,
+    m_contextMenu,
+    MF_SEPARATOR,
+    0,
+    nullptr);
+
+  appendContextMenu(IDM_ABOUT, L"About...");
+
+  appendContextMenu(IDM_QUIT,  L"Quit (Q)");
 }
 
 
@@ -1011,6 +1020,15 @@ bool GVMainWindow::onCommand(WPARAM wParam, LPARAM lParam)
       m_config.m_controllerID = i;
       return true;
     }
+
+    case IDM_ABOUT:
+      MessageBox(m_hwnd,
+        L"Gamepad Viewer 1.0\n"
+        L"Copyright 2024 Scott McPeak\n"
+        L"Licensed under the MIT open source license\n",
+        L"Gamepad Viewer",
+        MB_OK);
+      return true;
 
     case IDM_QUIT:
       PostMessage(m_hwnd, WM_CLOSE, 0, 0);
