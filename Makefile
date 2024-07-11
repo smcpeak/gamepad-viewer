@@ -20,6 +20,9 @@ LDFLAGS += -g
 LDFLAGS += -Wall
 LDFLAGS += -municode
 
+# Do not require the winlibs DLLs at runtime.
+LDFLAGS += -static
+
 LIBS :=
 
 # Direct2D.  For me, the actual file is:
