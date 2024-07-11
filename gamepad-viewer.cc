@@ -283,10 +283,9 @@ void GVMainWindow::onPaint()
   createGraphicsResources();
 
   PAINTSTRUCT ps;
-  HDC hdc = BeginPaint(m_hwnd, &ps);
-  if (!hdc) {
-    winapiDieNLE(L"BeginPaint");
-  }
+  HDC hdc;
+  CALL_HANDLE_WINAPI(hdc, BeginPaint, m_hwnd, &ps);
+
   // The `hdc` is not further used because this function uses D2D
   // rather than GDI.
 
@@ -888,10 +887,7 @@ void GVMainWindow::resizeWindow(int delta)
 
 void GVMainWindow::createContextMenu()
 {
-  m_contextMenu = CreatePopupMenu();
-  if (!m_contextMenu) {
-    winapiDie(L"CreatePopupMenu");
-  }
+  CALL_HANDLE_WINAPI(m_contextMenu, CreatePopupMenu);
 
   appendContextMenu(IDM_SET_LINE_COLOR,      L"Set line color (C)");
   appendContextMenu(IDM_SET_HIGHLIGHT_COLOR, L"Set highlight color (H)");
@@ -900,20 +896,18 @@ void GVMainWindow::createContextMenu()
   appendContextMenu(IDM_SMALLER_WINDOW,      L"Make display smaller (-)");
   appendContextMenu(IDM_LARGER_WINDOW,       L"Make display larger (+)");
 
-  m_controllerIDMenu = CreatePopupMenu();
-  if (!m_controllerIDMenu) {
-    winapiDie(L"CreatePopupMenu");
-  }
+  CALL_HANDLE_WINAPI(m_controllerIDMenu, CreatePopupMenu);
 
   appendMenu(m_controllerIDMenu, IDM_CONTROLLER_0, L"Use controller 0");
   appendMenu(m_controllerIDMenu, IDM_CONTROLLER_1, L"Use controller 1");
   appendMenu(m_controllerIDMenu, IDM_CONTROLLER_2, L"Use controller 2");
   appendMenu(m_controllerIDMenu, IDM_CONTROLLER_3, L"Use controller 3");
 
-  if (!AppendMenu(m_contextMenu, MF_STRING | MF_POPUP,
-                  (UINT_PTR)m_controllerIDMenu, L"Controller")) {
-    winapiDie(L"AppendMenu");
-  }
+  CALL_BOOL_WINAPI(AppendMenu,
+    m_contextMenu,
+    MF_STRING | MF_POPUP,
+    (UINT_PTR)m_controllerIDMenu,
+    L"Controller");
 
   appendContextMenu(IDM_QUIT,                L"Quit (Q)");
 }
@@ -927,22 +921,18 @@ void GVMainWindow::appendContextMenu(int id, wchar_t const *label)
 
 void GVMainWindow::appendMenu(HMENU menu, int id, wchar_t const *label)
 {
-  if (!AppendMenu(
-         menu,
-         MF_STRING,
-         id,
-         label)) {
-    winapiDie(L"AppendMenu");
-  }
+  CALL_BOOL_WINAPI(AppendMenu,
+    menu,
+    MF_STRING,
+    id,
+    label);
 }
 
 
 void GVMainWindow::destroyContextMenu()
 {
   // This destroys `m_controllerIDMenu` too.
-  if (!DestroyMenu(m_contextMenu)) {
-    winapiDie(L"DestroyMenu");
-  }
+  CALL_BOOL_WINAPI(DestroyMenu, m_contextMenu);
   m_contextMenu = nullptr;
   m_controllerIDMenu = nullptr;
 }
@@ -955,18 +945,16 @@ void GVMainWindow::onContextMenu(int x, int y)
 
   TRACE2(L"onContextMenu:" << TRVAL(x) << TRVAL(y));
 
-  if (!TrackPopupMenu(
-         m_contextMenu,
-         TPM_LEFTALIGN | TPM_TOPALIGN,
-         x,
-         y,
-         0,                  // nReserved
-         m_hwnd,
-         nullptr)) {         // prcRect
-    // At least sometimes this triggers a second time with the error
-    // "Popup menu already active.", so ignore it.
-    //winapiDie(L"TrackPopupMenu");
-  }
+  // At least sometimes this triggers a second time with the error
+  // "Popup menu already active.", so ignore failures.
+  TrackPopupMenu(
+    m_contextMenu,
+    TPM_LEFTALIGN | TPM_TOPALIGN,
+    x,
+    y,
+    0,                  // nReserved
+    m_hwnd,
+    nullptr);
 }
 
 
@@ -1082,13 +1070,11 @@ void GVMainWindow::toggleTopmost()
 
 void GVMainWindow::setTopmost(bool tm)
 {
-  if (!SetWindowPos(
-         m_hwnd,
-         tm? HWND_TOPMOST : HWND_NOTOPMOST,
-         0,0,0,0,                      // New pos/size, ignored.
-         SWP_NOMOVE | SWP_NOSIZE)) {   // Ignore pos/size.
-    winapiDie(L"SetWindowPos");
-  }
+  CALL_BOOL_WINAPI(SetWindowPos,
+    m_hwnd,
+    tm? HWND_TOPMOST : HWND_NOTOPMOST,
+    0,0,0,0,                      // New pos/size, ignored.
+    SWP_NOMOVE | SWP_NOSIZE);     // Ignore pos/size.
 }
 
 
@@ -1196,14 +1182,11 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
         // alpha to the entire window, while the alpha channel of the
         // color is ignored.
         //
-        BOOL ok = SetLayeredWindowAttributes(
+        CALL_BOOL_WINAPI(SetLayeredWindowAttributes,
           m_hwnd,
           RGB(0,0,0),          // crKey, the transparent color.
           255,                 // bAlpha (ignored here I think).
           LWA_COLORKEY);       // dwFlags
-        if (!ok) {
-          winapiDie(L"SetLayeredWindowAttributes");
-        }
       }
 
       // Create a timer for polling the controller.
@@ -1220,9 +1203,7 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
 
     case WM_DESTROY:
       TRACE2(L"received WM_DESTROY");
-      if (!KillTimer(m_hwnd, 1)) {
-        winapiDie(L"KillTimer");
-      }
+      CALL_BOOL_WINAPI(KillTimer, m_hwnd, 1);
       saveConfiguration();
       destroyGraphicsResources();
       destroyDeviceIndependentResources();

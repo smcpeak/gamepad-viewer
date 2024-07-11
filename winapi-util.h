@@ -34,6 +34,23 @@ std::wstring getHRErrorMessage(HRESULT hr);
 void winapiDie(wchar_t const *functionName);
 
 
+// Call `function`, which returns a handle on success and null on
+// failure, with the specified arguments.  Store the result in `hvar`.
+// Die if it fails.
+#define CALL_HANDLE_WINAPI(hvar, function, ...) \
+  if (!(hvar = function(__VA_ARGS__))) {        \
+    winapiDie(WIDE_STRINGIZE(function));        \
+  }
+
+
+// Call `function`, which returns a `BOOL` indicating success, with the
+// specified arguments.  Die if it fails.
+#define CALL_BOOL_WINAPI(function, ...)  \
+  if (!function(__VA_ARGS__)) {          \
+    winapiDie(WIDE_STRINGIZE(function)); \
+  }
+
+
 // Given that `functionName` has failed, but that function does not set
 // `GetLastError()` ("NLE" stands for "No Last Error"), print an error
 // message to stderr and exit(2).
