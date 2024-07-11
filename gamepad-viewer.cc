@@ -1199,7 +1199,7 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
       }
 
       if (g_useTransparency) {
-        // Arrange to treat purple as transparent.
+        // Arrange to treat black as transparent.
         //
         // The exact choice of transparent color is important!  In
         // particular, the red and blue values must be equal, otherwise
@@ -1291,11 +1291,6 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
         m_lastDragPoint = pt;
 
         // Move the window.
-        //
-        // This does not work as well as it could because when the
-        // mouse moves enough to get outside the thin lines, I stop
-        // getting mouse move messages.
-        //
         MoveWindow(m_hwnd,
           r.left + dx,
           r.top + dy,
