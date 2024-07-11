@@ -65,8 +65,7 @@ bool g_useTransparency = true;
 
 // Menu item identifiers.
 enum {
-  IDM_NONE,
-  IDM_SET_LINE_COLOR,
+  IDM_SET_LINE_COLOR = 1,
   IDM_SET_HIGHLIGHT_COLOR,
   IDM_TOGGLE_TEXT,
   IDM_TOGGLE_TOPMOST,
@@ -77,6 +76,12 @@ enum {
   IDM_CONTROLLER_2,
   IDM_CONTROLLER_3,
   IDM_QUIT,
+};
+
+
+// Timer identifiers.
+enum {
+  IDT_POLL_CONTROLLER = 1,
 };
 
 
@@ -264,16 +269,26 @@ void GVMainWindow::destroyLinesBrushes()
 
 void GVMainWindow::onTimer(WPARAM wParam)
 {
-  DWORD prevPN = m_controllerState.dwPacketNumber;
+  switch (wParam) {
+    case IDT_POLL_CONTROLLER: {
+      DWORD prevPN = m_controllerState.dwPacketNumber;
 
-  pollControllerState();
+      pollControllerState();
 
-  if (prevPN != m_controllerState.dwPacketNumber ||
-      m_lastShownControllerID != m_config.m_controllerID) {
-    // Redraw to show the new state.
-    invalidateAllPixels();
+      if (prevPN != m_controllerState.dwPacketNumber ||
+          m_lastShownControllerID != m_config.m_controllerID) {
+        // Redraw to show the new state.
+        invalidateAllPixels();
 
-    m_lastShownControllerID = m_config.m_controllerID;
+        m_lastShownControllerID = m_config.m_controllerID;
+      }
+
+      break;
+    }
+
+    default:
+      // Ignore unknown timer IDs.
+      break;
   }
 }
 
@@ -1191,11 +1206,12 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
 
       // Create a timer for polling the controller.
       UINT_PTR id =
-        SetTimer(m_hwnd, 1, m_config.m_pollingIntervalMS, nullptr /*proc*/);
+        SetTimer(m_hwnd, IDT_POLL_CONTROLLER,
+                 m_config.m_pollingIntervalMS, nullptr /*proc*/);
       if (!id) {
         winapiDie(L"SetTimer");
       }
-      assert(id == 1);
+      assert(id == IDT_POLL_CONTROLLER);
 
       createDeviceIndependentResources();
       return 0;
@@ -1203,7 +1219,7 @@ LRESULT CALLBACK GVMainWindow::handleMessage(
 
     case WM_DESTROY:
       TRACE2(L"received WM_DESTROY");
-      CALL_BOOL_WINAPI(KillTimer, m_hwnd, 1);
+      CALL_BOOL_WINAPI(KillTimer, m_hwnd, IDT_POLL_CONTROLLER);
       saveConfiguration();
       destroyGraphicsResources();
       destroyDeviceIndependentResources();
