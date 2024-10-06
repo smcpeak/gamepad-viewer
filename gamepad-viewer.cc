@@ -75,6 +75,7 @@ enum {
   IDM_CONTROLLER_1,
   IDM_CONTROLLER_2,
   IDM_CONTROLLER_3,
+  IDM_MINIMIZE,
   IDM_ABOUT,
   IDM_QUIT,
 };
@@ -846,18 +847,22 @@ bool GVMainWindow::onKeyDown(WPARAM wParam, LPARAM lParam)
          TRVAL(wParam) << TRVAL(lParam) << std::dec);
 
   switch (wParam) {
-    case 'Q':
-      // Q to quit.
-      TRACE2(L"Saw Q keypress.");
-      PostMessage(m_hwnd, WM_CLOSE, 0, 0);
-      return true;
-
     case 'C':
       runColorChooser(false /*highlight*/);
       return true;
 
     case 'H':
       runColorChooser(true /*highlight*/);
+      return true;
+
+    case 'M':
+      minimizeWindow();
+      return true;
+
+    case 'Q':
+      // Q to quit.
+      TRACE2(L"Saw Q keypress.");
+      PostMessage(m_hwnd, WM_CLOSE, 0, 0);
       return true;
 
     case 'S':
@@ -930,6 +935,8 @@ void GVMainWindow::createContextMenu()
     MF_SEPARATOR,
     0,
     nullptr);
+
+  appendContextMenu(IDM_MINIMIZE, L"Minimize window (M)");
 
   appendContextMenu(IDM_ABOUT, L"About...");
 
@@ -1020,6 +1027,10 @@ bool GVMainWindow::onCommand(WPARAM wParam, LPARAM lParam)
       m_config.m_controllerID = i;
       return true;
     }
+
+    case IDM_MINIMIZE:
+      minimizeWindow();
+      return true;
 
     case IDM_ABOUT:
       MessageBox(m_hwnd,
@@ -1179,6 +1190,13 @@ void GVMainWindow::onWindowPosChanged(WINDOWPOS const *wp)
   if (changedSize) {
     onResize();
   }
+}
+
+
+void GVMainWindow::minimizeWindow()
+{
+  // This function does not return any error indication.
+  ShowWindow(m_hwnd, SW_MINIMIZE);
 }
 
 

@@ -222,6 +222,9 @@ public:      // methods
   // Handle `WM_WINDOWPOSCHANGED`.
   void onWindowPosChanged(WINDOWPOS const *wp);
 
+  // Minimize the game viewer window.
+  void minimizeWindow();
+
   // BaseWindow methods.
   virtual LRESULT handleMessage(
     UINT uMsg, WPARAM wParam, LPARAM lParam) override;
