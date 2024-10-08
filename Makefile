@@ -20,6 +20,10 @@ LDFLAGS += -g
 LDFLAGS += -Wall
 LDFLAGS += -municode
 
+# Disable the console window.  But note that this disables tracing
+# output.
+LDFLAGS += -mwindows
+
 # Do not require the winlibs DLLs at runtime.
 LDFLAGS += -static
 
