@@ -12,7 +12,6 @@
 #include <dwrite.h>                    // DirectWrite
 #include <windows.h>                   // Windows API
 #include <windowsx.h>                  // GET_X_PARAM, GET_Y_LPARAM
-#include <xinput.h>                    // XInputGetState
 
 #include <algorithm>                   // std::min
 #include <cassert>                     // assert
@@ -97,16 +96,17 @@ GVMainWindow::GVMainWindow()
     m_textBrush(nullptr),
     m_linesBrush(nullptr),
     m_highlightBrush(nullptr),
+    m_parryActiveBrush(nullptr),
+    m_parryInactiveBrush(nullptr),
     m_config(),
     m_controllerState(),
-    m_hasControllerState(false),
+    m_prevControllerState(),
+    m_parryTimerActive(false),
+    m_parryTimerStartMS(0),
     m_lastDragPoint{},
     m_movingWindow(false),
     m_lastShownControllerID(-1)
 {
-  // I'm not sure if the default ctor initializes this.
-  std::memset(&m_controllerState, 0, sizeof(m_controllerState));
-
   loadConfiguration();
 }
 
@@ -130,7 +130,7 @@ void GVMainWindow::createDeviceIndependentResources()
     DWRITE_FONT_WEIGHT_NORMAL,         // fontWeight
     DWRITE_FONT_STYLE_NORMAL,          // fontStyle
     DWRITE_FONT_STRETCH_NORMAL,        // fontStretch
-    12.0f,                             // fontSize
+    lp().m_textFontSizeDIPs,           // fontSize
     L"",                               // localeName
     &m_textFormat                      // textFormat
   );
@@ -186,9 +186,58 @@ void GVMainWindow::destroyDeviceIndependentResources()
 
 void GVMainWindow::pollControllerState()
 {
-  memset(&m_controllerState, 0, sizeof(m_controllerState));
-  DWORD res = XInputGetState(m_config.m_controllerID, &m_controllerState);
-  m_hasControllerState = (res == ERROR_SUCCESS);
+  m_prevControllerState = m_controllerState;
+  m_controllerState.poll(m_config.m_controllerID);
+
+  // Possibly expire the parry timer.
+  int elapsed = (int)parryTimerElapsedMS();
+  if (m_parryTimerActive &&
+      elapsed > m_config.m_parryTimer.m_durationMS) {
+    m_parryTimerActive = false;
+  }
+
+  // Check for L2 being pressed, and it was previously not pressed.
+  bool leftSide = true;
+  AnalogThresholdConfig const &atConfig = m_config.m_analogThresholds;
+  if (!m_parryTimerActive &&
+      m_prevControllerState.m_hasInputState &&
+      m_controllerState.m_hasInputState &&
+      !m_prevControllerState.isTriggerPressed(atConfig, leftSide) &&
+      m_controllerState.isTriggerPressed(atConfig, leftSide))
+  {
+    // Upon pressing L2, start the timer.
+    m_parryTimerActive = true;
+    m_parryTimerStartMS = m_controllerState.m_pollTimeMS;
+  }
+}
+
+
+XINPUT_STATE const &GVMainWindow::inputState() const
+{
+  return m_controllerState.m_inputState;
+}
+
+
+DWORD GVMainWindow::parryTimerElapsedMS() const
+{
+  if (m_parryTimerActive) {
+    // This uses wraparound arithmetic, which should be fine.
+    return m_controllerState.m_pollTimeMS - m_parryTimerStartMS;
+  }
+  else {
+    return 0;
+  }
+}
+
+
+bool GVMainWindow::isParryActive() const
+{
+  if (m_parryTimerActive) {
+    return m_config.m_parryTimer.isActive((int)parryTimerElapsedMS());
+  }
+  else {
+    return false;
+  }
 }
 
 
@@ -242,22 +291,24 @@ static D2D1_COLOR_F COLORREF_to_ColorF(COLORREF cr)
 }
 
 
+void GVMainWindow::createBrush(
+  ID2D1SolidColorBrush *&brush, COLORREF colorref)
+{
+  D2D1_COLOR_F color = COLORREF_to_ColorF(colorref);
+  CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
+    color,
+    &brush);
+  assert(brush);
+}
+
+
 void GVMainWindow::createLinesBrushes()
 {
-  D2D1_COLOR_F linesColor = COLORREF_to_ColorF(m_config.m_linesColorref);
-  CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
-    linesColor,
-    &m_textBrush);
-  assert(m_textBrush);
-
-  CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
-    linesColor,
-    &m_linesBrush);
-
-  D2D1_COLOR_F highlightColor = COLORREF_to_ColorF(m_config.m_highlightColorref);
-  CALL_HR_WINAPI(m_renderTarget->CreateSolidColorBrush,
-    highlightColor,
-    &m_highlightBrush);
+  createBrush(m_textBrush, m_config.m_linesColorref);
+  createBrush(m_linesBrush, m_config.m_linesColorref);
+  createBrush(m_highlightBrush, m_config.m_highlightColorref);
+  createBrush(m_parryActiveBrush, m_config.m_parryActiveColorref);
+  createBrush(m_parryInactiveBrush, m_config.m_parryInactiveColorref);
 }
 
 
@@ -266,19 +317,48 @@ void GVMainWindow::destroyLinesBrushes()
   safeRelease(m_textBrush);
   safeRelease(m_linesBrush);
   safeRelease(m_highlightBrush);
+  safeRelease(m_parryActiveBrush);
+  safeRelease(m_parryInactiveBrush);
 }
 
+
+ID2D1SolidColorBrush *GVMainWindow::brushForColorRole(
+  GVColorRole color) const
+{
+  switch (color) {
+    default:
+    case GVCR_NONE:                    return nullptr;
+    case GVCR_NORMAL:                  return m_linesBrush;
+    case GVCR_HIGHLIGHT:               return m_highlightBrush;
+    case GVCR_PARRY_ACTIVE:            return m_parryActiveBrush;
+    case GVCR_PARRY_INACTIVE:          return m_parryInactiveBrush;
+  }
+}
 
 void GVMainWindow::onTimer(WPARAM wParam)
 {
   switch (wParam) {
     case IDT_POLL_CONTROLLER: {
-      DWORD prevPN = m_controllerState.dwPacketNumber;
+      DWORD prevPN = inputState().dwPacketNumber;
+      bool prevParryTimerActive = m_parryTimerActive;
 
       pollControllerState();
 
-      if (prevPN != m_controllerState.dwPacketNumber ||
-          m_lastShownControllerID != m_config.m_controllerID) {
+      // Redraw if any of the following:
+      if (
+        // There is new controller data.
+        prevPN != inputState().dwPacketNumber ||
+
+        // The data is for a different controller.
+        m_lastShownControllerID != m_config.m_controllerID ||
+
+        // The parry timer is currently active.
+        m_parryTimerActive ||
+
+        // The parry timer was active on the previous update.  If it is
+        // not now active, we need to redraw to remove its display.
+        prevParryTimerActive
+      ) {
         // Redraw to show the new state.
         invalidateAllPixels();
 
@@ -377,11 +457,11 @@ void GVMainWindow::drawControllerState()
   if (m_config.m_showText) {
     std::wostringstream oss;
 
-    XINPUT_STATE const &i = m_controllerState;
+    XINPUT_STATE const &i = inputState();
     XINPUT_GAMEPAD const &g = i.Gamepad;
 
     oss << L"controllerID: " << m_config.m_controllerID << L"\n";
-    oss << L"hasState: " << m_hasControllerState << L"\n";
+    oss << L"hasState: " << m_controllerState.m_hasInputState << L"\n";
     oss << L"packet: " << i.dwPacketNumber << L"\n";
     oss << L"buttons: " << std::hex << g.wButtons << std::dec << L"\n";
     oss << L"leftTrigger: " << +g.bLeftTrigger << L"\n";
@@ -390,6 +470,7 @@ void GVMainWindow::drawControllerState()
     oss << L"thumbLY: " << g.sThumbLY << L"\n";
     oss << L"thumbRX: " << g.sThumbRX << L"\n";
     oss << L"thumbRY: " << g.sThumbRY << L"\n";
+    oss << L"parryElapsedMS: " << parryTimerElapsedMS() << L"\n";
 
     std::wstring s = oss.str();
     m_renderTarget->DrawText(
@@ -405,8 +486,6 @@ void GVMainWindow::drawControllerState()
     return;
   }
 
-  LayoutParams const &lp = m_config.m_layoutParams;
-
   // Create a coordinate system where the upper-left is (0,0) and the
   // lower-right is (1,1).
   D2D1_MATRIX_3X2_F baseTransform =
@@ -414,38 +493,45 @@ void GVMainWindow::drawControllerState()
 
   // Draw the round buttons.
   drawRoundButtons(
-    focusPtR(1.0 - lp.m_faceButtonsR, lp.m_faceButtonsY, lp.m_faceButtonsR) *
+    focusPtR(1.0 - lp().m_faceButtonsR, lp().m_faceButtonsY, lp().m_faceButtonsR) *
     baseTransform);
 
   // Draw the dpad.
   drawDPadButtons(
-    focusPtR(lp.m_faceButtonsR, lp.m_faceButtonsY, lp.m_faceButtonsR) *
+    focusPtR(lp().m_faceButtonsR, lp().m_faceButtonsY, lp().m_faceButtonsR) *
     baseTransform);
 
   // Draw the shoulder buttons.
   drawShoulderButtons(
-    focusPtR(lp.m_shoulderButtonsX, lp.m_shoulderButtonsR, lp.m_shoulderButtonsR) * baseTransform,
+    focusPtR(lp().m_shoulderButtonsX, lp().m_shoulderButtonsR, lp().m_shoulderButtonsR) * baseTransform,
     true /*left*/);
   drawShoulderButtons(
-    focusPtR(1.0 - lp.m_shoulderButtonsX, lp.m_shoulderButtonsR, lp.m_shoulderButtonsR) * baseTransform,
+    focusPtR(1.0 - lp().m_shoulderButtonsX, lp().m_shoulderButtonsR, lp().m_shoulderButtonsR) * baseTransform,
     false /*left*/);
+
+  // Draw the parry timer.
+  if (m_parryTimerActive) {
+    drawParryTimer(
+      focusPtHVR(lp().m_parryTimerX,  lp().m_parryTimerY,
+                 lp().m_parryTimerHR, lp().m_parryTimerVR) * baseTransform);
+  }
 
   // Draw the sticks.
   drawStick(
-    focusPtR(lp.m_stickR, 1.0 - lp.m_stickR, lp.m_stickR) * baseTransform,
+    focusPtR(lp().m_stickR, 1.0 - lp().m_stickR, lp().m_stickR) * baseTransform,
     true /*left*/);
   drawStick(
-    focusPtR(1.0 - lp.m_stickR, 1.0 - lp.m_stickR, lp.m_stickR) * baseTransform,
+    focusPtR(1.0 - lp().m_stickR, 1.0 - lp().m_stickR, lp().m_stickR) * baseTransform,
     false /*left*/);
 
   // Draw the select and start buttons.
   drawSelStartButton(
-    focusPtHVR(0.5 - lp.m_selStartX, lp.m_faceButtonsY,
-               lp.m_selStartHR,      lp.m_selStartVR)   * baseTransform,
+    focusPtHVR(0.5 - lp().m_selStartX, lp().m_faceButtonsY,
+               lp().m_selStartHR,      lp().m_selStartVR)   * baseTransform,
     true /*left*/);
   drawSelStartButton(
-    focusPtHVR(0.5 + lp.m_selStartX, lp.m_faceButtonsY,
-               lp.m_selStartHR,      lp.m_selStartVR)   * baseTransform,
+    focusPtHVR(0.5 + lp().m_selStartX, lp().m_faceButtonsY,
+               lp().m_selStartHR,      lp().m_selStartVR)   * baseTransform,
     false /*left*/);
 
   // Draw a central circle that could be considered to mimic the
@@ -453,7 +539,7 @@ void GVMainWindow::drawControllerState()
   // place for the mouse to be clicked since the rest of the UI consists
   // of thin lines that are hard to click.
   drawCentralCircle(
-    focusPtR(0.5, lp.m_centralCircleY, lp.m_centralCircleR) * baseTransform);
+    focusPtR(0.5, lp().m_centralCircleY, lp().m_centralCircleR) * baseTransform);
 }
 
 
@@ -461,22 +547,20 @@ void GVMainWindow::drawCircle(
   D2D1_MATRIX_3X2_F transform,
   bool fill)
 {
-  LayoutParams const &lp = m_config.m_layoutParams;
-
   m_renderTarget->SetTransform(transform);
 
   D2D1_ELLIPSE circle;
   circle.point.x = 0.5;
   circle.point.y = 0.5;
-  circle.radiusX = 0.5 - lp.m_circleMargin;
-  circle.radiusY = 0.5 - lp.m_circleMargin;
+  circle.radiusX = 0.5 - lp().m_circleMargin;
+  circle.radiusY = 0.5 - lp().m_circleMargin;
 
   // Draw the outline always since the stroke width means the outer
   // edge is a bit larger than the filled ellipse.
   m_renderTarget->DrawEllipse(
     circle,
     m_linesBrush,
-    lp.m_lineWidthPixels,              // strokeWidth in pixels
+    lp().m_lineWidthPixels,            // strokeWidth in pixels
     m_strokeStyleFixedThickness);      // strokeStyle
 
   if (fill) {
@@ -500,33 +584,40 @@ void GVMainWindow::drawCircleAt(
 
 void GVMainWindow::drawSquare(
   D2D1_MATRIX_3X2_F transform,
+  GVColorRole color,
+  float margin,
   bool fill)
 {
-  drawPartiallyFilledSquare(transform, fill? 1.0 : 0.0, 1.0 /*fillHR*/);
+  drawPartiallyFilledSquare(
+    transform,
+    color,
+    margin,
+    fill? 1.0 : 0.0,
+    1.0 /*fillHR*/);
 }
 
 
 void GVMainWindow::drawPartiallyFilledSquare(
   D2D1_MATRIX_3X2_F transform,
+  GVColorRole color,
+  float margin,
   float fillAmount,
   float fillHR)
 {
-  LayoutParams const &lp = m_config.m_layoutParams;
-
   m_renderTarget->SetTransform(transform);
 
   D2D1_RECT_F square;
-  square.left = lp.m_circleMargin;
-  square.top = lp.m_circleMargin;
-  square.right = 1.0 - lp.m_circleMargin;
-  square.bottom = 1.0 - lp.m_circleMargin;
+  square.left = margin;
+  square.top = margin;
+  square.right = 1.0 - margin;
+  square.bottom = 1.0 - margin;
 
   // Draw the outline always since the stroke width means the outer
-  // edge is a bit larger than the filled ellipse.
+  // edge is a bit larger than the filled shape.
   m_renderTarget->DrawRectangle(
     square,
-    m_linesBrush,
-    lp.m_lineWidthPixels,              // strokeWidth
+    brushForColorRole(color),
+    lp().m_lineWidthPixels,            // strokeWidth
     m_strokeStyleFixedThickness);      // strokeStyle
 
   if (fillAmount > 0) {
@@ -540,7 +631,7 @@ void GVMainWindow::drawPartiallyFilledSquare(
 
     m_renderTarget->FillRectangle(
       square,
-      m_linesBrush);
+      brushForColorRole(color));
   }
 }
 
@@ -551,17 +642,15 @@ void GVMainWindow::drawLine(
   float y1,
   float x2,
   float y2,
-  bool highlight)
+  GVColorRole color)
 {
-  LayoutParams const &lp = m_config.m_layoutParams;
-
   m_renderTarget->SetTransform(transform);
 
   m_renderTarget->DrawLine(
     D2D1::Point2F(x1, y1),
     D2D1::Point2F(x2, y2),
-    highlight? m_highlightBrush : m_linesBrush,
-    lp.m_lineWidthPixels,               // strokeWidth,
+    brushForColorRole(color),
+    lp().m_lineWidthPixels,            // strokeWidth
     m_strokeStyleFixedThickness);      // strokeStyle
 }
 
@@ -586,9 +675,7 @@ static D2D1_MATRIX_3X2_F rotateAroundCenterRad(float radians)
 void GVMainWindow::drawRoundButtons(
   D2D1_MATRIX_3X2_F transform)
 {
-  LayoutParams const &lp = m_config.m_layoutParams;
-
-  WORD buttons = m_controllerState.Gamepad.wButtons;
+  WORD buttons = inputState().Gamepad.wButtons;
 
   // Button masks, starting at top, then going clockwise.
   WORD masks[4] = {
@@ -599,7 +686,7 @@ void GVMainWindow::drawRoundButtons(
   };
 
   for (int i=0; i < 4; ++i) {
-    drawCircle(focusPtR(0.5, lp.m_roundButtonR, lp.m_roundButtonR) * transform,
+    drawCircle(focusPtR(0.5, lp().m_roundButtonR, lp().m_roundButtonR) * transform,
       buttons & masks[i]);
 
     // Rotate the transform 90 degrees around the center.
@@ -611,9 +698,7 @@ void GVMainWindow::drawRoundButtons(
 void GVMainWindow::drawDPadButtons(
   D2D1_MATRIX_3X2_F transform)
 {
-  LayoutParams const &lp = m_config.m_layoutParams;
-
-  WORD buttons = m_controllerState.Gamepad.wButtons;
+  WORD buttons = inputState().Gamepad.wButtons;
 
   // Button masks, starting at top, then going clockwise.
   WORD masks[4] = {
@@ -624,7 +709,10 @@ void GVMainWindow::drawDPadButtons(
   };
 
   for (int i=0; i < 4; ++i) {
-    drawSquare(focusPtR(0.5, lp.m_dpadButtonR, lp.m_dpadButtonR) * transform,
+    drawSquare(
+      focusPtR(0.5, lp().m_dpadButtonR, lp().m_dpadButtonR) * transform,
+      GVCR_NORMAL,
+      lp().m_circleMargin,
       buttons & masks[i]);
 
     // Rotate the transform 90 degrees around the center.
@@ -637,31 +725,76 @@ void GVMainWindow::drawShoulderButtons(
   D2D1_MATRIX_3X2_F transform,
   bool leftSide)
 {
-  LayoutParams const &lp = m_config.m_layoutParams;
-
-  WORD buttons = m_controllerState.Gamepad.wButtons;
+  WORD buttons = inputState().Gamepad.wButtons;
   WORD mask = (leftSide? XINPUT_GAMEPAD_LEFT_SHOULDER :
                          XINPUT_GAMEPAD_RIGHT_SHOULDER);
 
   // Bumper.
   drawSquare(
-    focusPtHVR(0.5, 1.0 - lp.m_bumperVR, 0.5, lp.m_bumperVR) * transform,
+    focusPtHVR(0.5, 1.0 - lp().m_bumperVR, 0.5, lp().m_bumperVR) * transform,
+    GVCR_NORMAL,
+    lp().m_circleMargin,
     buttons & mask);
 
-  BYTE trigger = (leftSide? m_controllerState.Gamepad.bLeftTrigger :
-                            m_controllerState.Gamepad.bRightTrigger);
+  BYTE trigger = (leftSide? inputState().Gamepad.bLeftTrigger :
+                            inputState().Gamepad.bRightTrigger);
   float fillAmount = trigger / 255.0;
+
+  bool isPressed =
+    m_controllerState.isTriggerPressed(m_config.m_analogThresholds, leftSide);
 
   // Trigger.
   //
   // If `trigger` exceeds the dead zone threshold, then the fill is the
   // entire rectangle width.  But if not, it is only half of the width
-  // in order to indicate that the game may not regiser it.
+  // in order to indicate that the game may not register it.
   //
   drawPartiallyFilledSquare(
-    focusPtHVR(0.5, lp.m_triggerVR, 0.5, lp.m_triggerVR) * transform,
+    focusPtHVR(0.5, lp().m_triggerVR, 0.5, lp().m_triggerVR) * transform,
+    GVCR_NORMAL,
+    lp().m_circleMargin,
     fillAmount,
-    trigger > m_config.m_analogThresholds.m_triggerDeadZone? 1.0 : 0.5);
+    isPressed? 1.0 : 0.5);
+}
+
+
+void GVMainWindow::drawParryTimer(
+  D2D1_MATRIX_3X2_F transform)
+{
+  ParryTimerConfig const &ptc = m_config.m_parryTimer;
+
+  if (ptc.m_durationMS > 0) {
+    // Draw the timer bar.  This comes first so it appears below the
+    // outline and hash marks.
+    float fillAmount =
+      (float)parryTimerElapsedMS() / ptc.m_durationMS;
+    drawSquare(
+      focusArea(0, 0, fillAmount, 1.0) * transform,
+      isParryActive()? GVCR_PARRY_ACTIVE : GVCR_PARRY_INACTIVE,
+      0 /*margin*/,
+      true /*fill*/);
+
+    // Draw the outline of the timer.
+    drawSquare(transform, GVCR_NORMAL, 0 /*margin*/, false /*fill*/);
+
+    // Draw the segment hash marks.
+    for (int i=1; i < ptc.m_numSegments; ++i) {
+      float x = (float)i / ptc.m_numSegments;
+      drawLine(transform, x, 1.0 - lp().m_parryTimerHashHeight,
+                          x, 1.0,
+                          GVCR_NORMAL);
+    }
+
+    // Draw hash marks for the active area boundary.
+    float x = (float)ptc.m_activeStartMS / ptc.m_durationMS;
+    drawLine(transform, x, 0.0,
+                        x, lp().m_parryTimerHashHeight,
+                        GVCR_NORMAL);
+    x = (float)ptc.m_activeEndMS / ptc.m_durationMS;
+    drawLine(transform, x, 0.0,
+                        x, lp().m_parryTimerHashHeight,
+                        GVCR_NORMAL);
+  }
 }
 
 
@@ -669,20 +802,18 @@ void GVMainWindow::drawStick(
   D2D1_MATRIX_3X2_F transform,
   bool leftSide)
 {
-  LayoutParams const &lp = m_config.m_layoutParams;
-
   AnalogThresholdConfig const &thr = m_config.m_analogThresholds;
 
   // Outline.
-  drawCircleAt(transform, 0.5, 0.5, lp.m_stickOutlineR, false /*fill*/);
+  drawCircleAt(transform, 0.5, 0.5, lp().m_stickOutlineR, false /*fill*/);
 
   // Raw stick position in [-32768,32767], positive being rightward.
-  float rawX = (leftSide? m_controllerState.Gamepad.sThumbLX :
-                          m_controllerState.Gamepad.sThumbRX);
+  float rawX = (leftSide? inputState().Gamepad.sThumbLX :
+                          inputState().Gamepad.sThumbRX);
 
   // Raw stick position in [-32768,32767], positive being upward.
-  float rawY = (leftSide? m_controllerState.Gamepad.sThumbLY :
-                          m_controllerState.Gamepad.sThumbRY);
+  float rawY = (leftSide? inputState().Gamepad.sThumbLY :
+                          inputState().Gamepad.sThumbRY);
 
   // Dead zone size.  The exact shape depends on `leftSide`.
   float deadZone = (leftSide? thr.m_leftStickWalkThreshold :
@@ -732,15 +863,15 @@ void GVMainWindow::drawStick(
     float deflectY = magnitude * std::sin(angleRadians);
 
     // Filled circle representing the grippy part.
-    float spotX = 0.5 + deflectX * lp.m_stickMaxDeflectR;
-    float spotY = 0.5 + deflectY * lp.m_stickMaxDeflectR;
-    drawCircleAt(transform, spotX, spotY, lp.m_stickThumbR, true /*fill*/);
+    float spotX = 0.5 + deflectX * lp().m_stickMaxDeflectR;
+    float spotY = 0.5 + deflectY * lp().m_stickMaxDeflectR;
+    drawCircleAt(transform, spotX, spotY, lp().m_stickThumbR, true /*fill*/);
 
     // Line from center to circle showing the deflection angle, even
     // when the thumb is close to the center.
-    float edgeX = 0.5 + std::cos(angleRadians) * lp.m_stickMaxDeflectR;
-    float edgeY = 0.5 + std::sin(angleRadians) * lp.m_stickMaxDeflectR;
-    drawLine(transform, 0.5, 0.5, edgeX, edgeY, false /*highlight*/);
+    float edgeX = 0.5 + std::cos(angleRadians) * lp().m_stickMaxDeflectR;
+    float edgeY = 0.5 + std::sin(angleRadians) * lp().m_stickMaxDeflectR;
+    drawLine(transform, 0.5, 0.5, edgeX, edgeY, GVCR_NORMAL);
 
     if (leftSide) {
       // Add 90 degrees to the angle because it is 0 when going right,
@@ -750,7 +881,7 @@ void GVMainWindow::drawStick(
     }
   }
 
-  WORD buttons = m_controllerState.Gamepad.wButtons;
+  WORD buttons = inputState().Gamepad.wButtons;
   WORD mask = (leftSide? XINPUT_GAMEPAD_LEFT_THUMB :
                          XINPUT_GAMEPAD_RIGHT_THUMB);
 
@@ -768,10 +899,8 @@ void GVMainWindow::drawSpeedIndicator(
   float angleRadians,
   int speed)
 {
-  LayoutParams const &lp = m_config.m_layoutParams;
-
   // Focus on the thumb circle.
-  transform = focusPtR(spotX, spotY, lp.m_stickThumbR) * transform;
+  transform = focusPtR(spotX, spotY, lp().m_stickThumbR) * transform;
 
   // Turn the indicator to match the stick.
   transform = rotateAroundCenterRad(angleRadians) * transform;
@@ -785,7 +914,7 @@ void GVMainWindow::drawSpeedIndicator(
     // If speed is 3, then [-1,0,1].
     float offset = preliminary - (speed%2 == 0? 0.5 : 0);
 
-    drawChevron(transform, offset * lp.m_chevronSeparation);
+    drawChevron(transform, offset * lp().m_chevronSeparation);
   }
 }
 
@@ -794,13 +923,10 @@ void GVMainWindow::drawChevron(
   D2D1_MATRIX_3X2_F transform,
   float dy)
 {
-  LayoutParams const &lp = m_config.m_layoutParams;
-
-  bool const highlight = true;
-  drawLine(transform, 0.5 - lp.m_chevronHR, 0.5 + lp.m_chevronVR + dy,
-                      0.5,                  0.5 - lp.m_chevronVR + dy, highlight);
-  drawLine(transform, 0.5,                  0.5 - lp.m_chevronVR + dy,
-                      0.5 + lp.m_chevronHR, 0.5 + lp.m_chevronVR + dy, highlight);
+  drawLine(transform, 0.5 - lp().m_chevronHR, 0.5 + lp().m_chevronVR + dy,
+                      0.5,                    0.5 - lp().m_chevronVR + dy, GVCR_HIGHLIGHT);
+  drawLine(transform, 0.5,                    0.5 - lp().m_chevronVR + dy,
+                      0.5 + lp().m_chevronHR, 0.5 + lp().m_chevronVR + dy, GVCR_HIGHLIGHT);
 }
 
 
@@ -808,11 +934,11 @@ void GVMainWindow::drawSelStartButton(
   D2D1_MATRIX_3X2_F transform,
   bool leftSide)
 {
-  WORD buttons = m_controllerState.Gamepad.wButtons;
+  WORD buttons = inputState().Gamepad.wButtons;
   WORD mask = (leftSide? XINPUT_GAMEPAD_BACK :  // PS select
                          XINPUT_GAMEPAD_START);
 
-  drawSquare(transform, buttons & mask);
+  drawSquare(transform, GVCR_NORMAL, lp().m_circleMargin, buttons & mask);
 }
 
 

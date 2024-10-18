@@ -30,6 +30,10 @@ using json::JSON;
   LOAD_FIELD(#name, m_##name, expr)
 
 
+// For when the data type is `int`.
+#define LOAD_KEY_INT_FIELD(name) \
+  LOAD_FIELD(#name, m_##name, data.ToInt())
+
 // For when the data type is `float`.
 #define LOAD_KEY_FLOAT_FIELD(name) \
   LOAD_FIELD(#name, m_##name, data.ToFloat())
@@ -44,6 +48,8 @@ using json::JSON;
 // ----------------------- AnalogThresholdConfig -----------------------
 AnalogThresholdConfig::AnalogThresholdConfig()
     // These defaults are tuned for Elden Ring.
+    //
+    // TODO: Shouldn't the dead zone be 127?  At 128 it fires, right?
   : m_triggerDeadZone(128),
     m_rightStickDeadZone(6600),
     m_leftStickWalkThreshold(16000),
@@ -76,6 +82,41 @@ JSON AnalogThresholdConfig::saveToJSON() const
 }
 
 
+// ------------------------- ParryTimerConfig --------------------------
+ParryTimerConfig::ParryTimerConfig()
+  // Defaults in class body.
+{}
+
+
+bool ParryTimerConfig::isActive(int elapsedMS) const
+{
+  return m_activeStartMS <= elapsedMS &&
+                            elapsedMS <= m_activeEndMS;
+}
+
+
+void ParryTimerConfig::loadFromJSON(json::JSON const &obj)
+{
+  LOAD_KEY_INT_FIELD(durationMS);
+  LOAD_KEY_INT_FIELD(numSegments);
+  LOAD_KEY_INT_FIELD(activeStartMS);
+  LOAD_KEY_INT_FIELD(activeEndMS);
+}
+
+
+json::JSON ParryTimerConfig::saveToJSON() const
+{
+  JSON obj = json::Object();
+
+  SAVE_KEY_FIELD_CTOR(durationMS);
+  SAVE_KEY_FIELD_CTOR(numSegments);
+  SAVE_KEY_FIELD_CTOR(activeStartMS);
+  SAVE_KEY_FIELD_CTOR(activeEndMS);
+
+  return obj;
+}
+
+
 // --------------------------- LayoutParams ----------------------------
 LayoutParams::LayoutParams()
   // All of the default values are in the class body.
@@ -84,6 +125,7 @@ LayoutParams::LayoutParams()
 
 void LayoutParams::loadFromJSON(JSON const &obj)
 {
+  LOAD_KEY_FLOAT_FIELD(textFontSizeDIPs);
   LOAD_KEY_FLOAT_FIELD(faceButtonsY);
   LOAD_KEY_FLOAT_FIELD(faceButtonsR);
   LOAD_KEY_FLOAT_FIELD(roundButtonR);
@@ -92,6 +134,11 @@ void LayoutParams::loadFromJSON(JSON const &obj)
   LOAD_KEY_FLOAT_FIELD(shoulderButtonsR);
   LOAD_KEY_FLOAT_FIELD(bumperVR);
   LOAD_KEY_FLOAT_FIELD(triggerVR);
+  LOAD_KEY_FLOAT_FIELD(parryTimerX);
+  LOAD_KEY_FLOAT_FIELD(parryTimerY);
+  LOAD_KEY_FLOAT_FIELD(parryTimerHR);
+  LOAD_KEY_FLOAT_FIELD(parryTimerVR);
+  LOAD_KEY_FLOAT_FIELD(parryTimerHashHeight);
   LOAD_KEY_FLOAT_FIELD(stickR);
   LOAD_KEY_FLOAT_FIELD(stickOutlineR);
   LOAD_KEY_FLOAT_FIELD(stickMaxDeflectR);
@@ -113,6 +160,7 @@ JSON LayoutParams::saveToJSON() const
 {
   JSON obj = json::Object();
 
+  SAVE_KEY_FIELD_CTOR(textFontSizeDIPs);
   SAVE_KEY_FIELD_CTOR(faceButtonsY);
   SAVE_KEY_FIELD_CTOR(faceButtonsR);
   SAVE_KEY_FIELD_CTOR(roundButtonR);
@@ -121,6 +169,11 @@ JSON LayoutParams::saveToJSON() const
   SAVE_KEY_FIELD_CTOR(shoulderButtonsR);
   SAVE_KEY_FIELD_CTOR(bumperVR);
   SAVE_KEY_FIELD_CTOR(triggerVR);
+  SAVE_KEY_FIELD_CTOR(parryTimerX);
+  SAVE_KEY_FIELD_CTOR(parryTimerY);
+  SAVE_KEY_FIELD_CTOR(parryTimerHR);
+  SAVE_KEY_FIELD_CTOR(parryTimerVR);
+  SAVE_KEY_FIELD_CTOR(parryTimerHashHeight);
   SAVE_KEY_FIELD_CTOR(stickR);
   SAVE_KEY_FIELD_CTOR(stickOutlineR);
   SAVE_KEY_FIELD_CTOR(stickMaxDeflectR);
@@ -144,6 +197,8 @@ JSON LayoutParams::saveToJSON() const
 GPVConfig::GPVConfig()
   : m_linesColorref(RGB(118, 235, 220)),         // Pastel cyan.
     m_highlightColorref(RGB(53, 53, 242)),       // Dark blue, almost purple.
+    m_parryActiveColorref(RGB(255, 0, 0)),
+    m_parryInactiveColorref(RGB(128, 128, 128)),
     m_showText(false),
     m_topmostWindow(false),
     m_windowLeft(50),
@@ -187,6 +242,9 @@ void GPVConfig::loadFromJSON(JSON const &obj)
 {
   LOAD_FIELD("linesColorRGB", m_linesColorref, COLORREF_from_JSON(data));
   LOAD_FIELD("highlightColorRGB", m_highlightColorref, COLORREF_from_JSON(data));
+  LOAD_FIELD("parryActiveColorRGB", m_parryActiveColorref, COLORREF_from_JSON(data));
+  LOAD_FIELD("parryInactiveColorRGB", m_parryInactiveColorref, COLORREF_from_JSON(data));
+
   LOAD_KEY_FIELD(showText, data.ToBool());
   LOAD_KEY_FIELD(topmostWindow, data.ToBool());
   LOAD_KEY_FIELD(windowLeft, data.ToInt());
@@ -198,6 +256,10 @@ void GPVConfig::loadFromJSON(JSON const &obj)
 
   if (obj.hasKey("analogThresholds")) {
     m_analogThresholds.loadFromJSON(obj.at("analogThresholds"));
+  }
+
+  if (obj.hasKey("parryTimer")) {
+    m_parryTimer.loadFromJSON(obj.at("parryTimer"));
   }
 
   if (obj.hasKey("layoutParams")) {
@@ -212,6 +274,8 @@ JSON GPVConfig::saveToJSON() const
 
   obj["linesColorRGB"] = COLORREF_to_JSON(m_linesColorref);
   obj["highlightColorRGB"] = COLORREF_to_JSON(m_highlightColorref);
+  obj["parryActiveColorRGB"] = COLORREF_to_JSON(m_parryActiveColorref);
+  obj["parryInactiveColorRGB"] = COLORREF_to_JSON(m_parryInactiveColorref);
 
   SAVE_KEY_FIELD_CTOR(showText);
   SAVE_KEY_FIELD_CTOR(topmostWindow);
@@ -223,6 +287,7 @@ JSON GPVConfig::saveToJSON() const
   SAVE_KEY_FIELD_CTOR(controllerID);
 
   obj["analogThresholds"] = m_analogThresholds.saveToJSON();
+  obj["parryTimer"] = m_parryTimer.saveToJSON();
   obj["layoutParams"] = m_layoutParams.saveToJSON();
 
   return obj;

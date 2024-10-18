@@ -54,6 +54,32 @@ public:      // methods
 };
 
 
+// Parameters related to the parry timer.
+class ParryTimerConfig {
+public:      // data
+  // Duration of the timer in milliseconds.  This can be set to zero to
+  // disable the parry timer display.
+  int m_durationMS = 667;
+
+  // Number of segments in the timer bar.
+  int m_numSegments = 20;
+
+  // If elapsed time is in [start,end], parry is considered active.
+  int m_activeStartMS = 1000 * 7 / 30;
+  int m_activeEndMS = 1000 * 13 / 30;
+
+public:      // methods
+  ParryTimerConfig();
+
+  // True if `elapsed` is in the active range.
+  bool isActive(int elapsedMS) const;
+
+  // De/serialize as JSON.
+  void loadFromJSON(json::JSON const &obj);
+  json::JSON saveToJSON() const;
+};
+
+
 // Parameters that control how the controller UI is laid out.
 //
 // All of these are in [0,1], representing fractional distances of the
@@ -61,6 +87,10 @@ public:      // methods
 //
 class LayoutParams {
 public:      // data
+  // Font size for the text display in "device-independent pixel" units,
+  // one of which is 1/96th of an inch.
+  float m_textFontSizeDIPs = 16.0;
+
   // Distance from top to center of face button cluster and center of
   // select/start cluster.
   float m_faceButtonsY = 0.42;
@@ -85,6 +115,17 @@ public:      // data
 
   // Vertical radius of a trigger box within its shoulder cluster.
   float m_triggerVR = 0.35;
+
+  // X/Y of center of parry timer.
+  float m_parryTimerX = 0.5;
+  float m_parryTimerY = 0.125;
+
+  // H/V radius of parry timer.
+  float m_parryTimerHR = 0.2;
+  float m_parryTimerVR = 0.04;
+
+  // Height of hash marks as a proportion of the meter height.
+  float m_parryTimerHashHeight = 0.25;
 
   // Radius of each stick display cluster.
   float m_stickR = 0.25;
@@ -120,8 +161,8 @@ public:      // data
   // Radius of the central circle.
   float m_centralCircleR = 0.035;
 
-  // Distance that `drawCircle` and `drawSquare` leave between the edge of
-  // the circle and the edge of its nominal area.
+  // Distance that most uses of `drawCircle` and `drawSquare` leave
+  // between the edge of the circle and the edge of its nominal area.
   float m_circleMargin = 0.1;
 
   // Width in pixels of the lines.
@@ -145,6 +186,10 @@ public:      // data
   // Color to use to draw the highlights.
   COLORREF m_highlightColorref;
 
+  // Colors for active and inactive parry.
+  COLORREF m_parryActiveColorref;
+  COLORREF m_parryInactiveColorref;
+
   // If true, show the textual display of the controller inputs.
   bool m_showText;
 
@@ -166,6 +211,9 @@ public:      // data
 
   // Analog input thresholds.
   AnalogThresholdConfig m_analogThresholds;
+
+  // Parry timer configuration.
+  ParryTimerConfig m_parryTimer;
 
   // UI layout.
   LayoutParams m_layoutParams;

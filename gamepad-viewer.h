@@ -7,6 +7,7 @@
 #define GAMEPAD_VIEWER_H
 
 #include "base-window.h"               // BaseWindow
+#include "controller-state.h"          // ControllerState
 #include "gpv-config.h"                // GPVConfig
 
 #include <d2d1.h>                      // Direct2D
@@ -14,6 +15,27 @@
 #include <dwrite.h>                    // IDWriteFactory, IDWriteTextFormat
 #include <windows.h>                   // Windows API
 #include <xinput.h>                    // XINPUT_STATE
+
+
+// A UI element role that corresponds to a color.
+enum GVColorRole {
+  // No color; used to indicate, e.g., an unfilled interior.
+  GVCR_NONE,
+
+  // The normal color used for most lines.
+  GVCR_NORMAL,
+
+  // The highlight color for chevrons.
+  GVCR_HIGHLIGHT,
+
+  // Color to indicate parry is active.
+  GVCR_PARRY_ACTIVE,
+
+  // Color to indicate parry is inactive.
+  GVCR_PARRY_INACTIVE,
+
+  NUM_GV_COLOR_ROLES
+};
 
 
 // Main window of the gamepad viewer.
@@ -53,15 +75,27 @@ public:      // data
   // Brush for drawing highlight lines.
   ID2D1SolidColorBrush *m_highlightBrush;
 
+  // Brushes for filling the parry timer when the parry effect is active
+  // or inactive.
+  ID2D1SolidColorBrush *m_parryActiveBrush;
+  ID2D1SolidColorBrush *m_parryInactiveBrush;
+
   // ------------------------- Other app state -------------------------
   // User-adjustable configuration.
   GPVConfig m_config;
 
   // Current controller input.
-  XINPUT_STATE m_controllerState;
+  ControllerState m_controllerState;
 
-  // True if the last poll attempt succeeded.
-  bool m_hasControllerState;
+  // Controller input state during the previous polling cycle.
+  ControllerState m_prevControllerState;
+
+  // If true, we are showing the L2 parry timer.
+  bool m_parryTimerActive;
+
+  // If `m_parryTimerActive`, the `GetTickCount()` value when the timer
+  // began.
+  DWORD m_parryTimerStartMS;
 
   // Last point where the mouse was seen pressed.
   POINT m_lastDragPoint;
@@ -75,6 +109,10 @@ public:      // data
 public:      // methods
   GVMainWindow();
 
+  // Current layout parameters.
+  LayoutParams const &lp() const
+    { return m_config.m_layoutParams; }
+
   // Create the device-independent resources.
   void createDeviceIndependentResources();
 
@@ -83,6 +121,17 @@ public:      // methods
 
   // Set `m_controllerState` by polling the controller.
   void pollControllerState();
+
+  // Current state of buttons, etc.
+  XINPUT_STATE const &inputState() const;
+
+  // If the parry timer is active, return the number of milliseconds
+  // since the parry timer started, assuming `m_parryTimerActive`.
+  // Otherwise return 0.
+  DWORD parryTimerElapsedMS() const;
+
+  // Is the parry effect active according to the timer and config?
+  bool isParryActive() const;
 
   // Return the client rectangle size as a D2D1_SIZE_U.
   D2D1_SIZE_U getClientRectSizeU() const;
@@ -93,9 +142,17 @@ public:      // methods
   // Release and nullify the device-independent resources.
   void destroyGraphicsResources();
 
-  // Create/destroy `m_textBrush` and `m_linesBrush`.
+  // Create a single brush from `colorref`, storing its pointer in
+  // `brush`.
+  void createBrush(
+    ID2D1SolidColorBrush *&brush, COLORREF colorref);
+
+  // Create/destroy the brushes used for drawing lines and fills.
   void createLinesBrushes();
   void destroyLinesBrushes();
+
+  // Return the brush to use for a `color`.
+  ID2D1SolidColorBrush *brushForColorRole(GVColorRole color) const;
 
   // Handle `WM_TIMER`.
   void onTimer(WPARAM wParam);
@@ -118,13 +175,22 @@ public:      // methods
     bool fill);
 
   // Draw a square in the box.
-  void drawSquare(D2D1_MATRIX_3X2_F transform, bool fill);
+  void drawSquare(
+    D2D1_MATRIX_3X2_F transform,
+    GVColorRole color,
+    float margin,
+    bool fill);
 
   // Draw a square that is filled, from the bottom, by `fillAmount`.
   // `fillHR` is the horizontal radius of the filled portion, where 1.0
   // represents filling the box completely.
+  //
+  // The square is drawn `margin` proportional units inside the edges of
+  // `transform`.
   void drawPartiallyFilledSquare(
     D2D1_MATRIX_3X2_F transform,
+    GVColorRole color,
+    float margin,
     float fillAmount,
     float fillHR);
 
@@ -135,7 +201,7 @@ public:      // methods
     float y1,
     float x2,
     float y2,
-    bool highlight);
+    GVColorRole color);
 
   // Draw the round face buttons.
   void drawRoundButtons(D2D1_MATRIX_3X2_F transform);
@@ -145,6 +211,9 @@ public:      // methods
 
   // Draw the left or right shoulder button and trigger.
   void drawShoulderButtons(D2D1_MATRIX_3X2_F transform, bool leftSide);
+
+  // Draw the parry timer.
+  void drawParryTimer(D2D1_MATRIX_3X2_F transform);
 
   // Draw one of the sticks.
   void drawStick(D2D1_MATRIX_3X2_F transform, bool leftSide);
