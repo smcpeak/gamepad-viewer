@@ -17,6 +17,10 @@
 using json::JSON;
 
 
+// True if `name` of `this` equals the same field in `obj`.
+#define EMEMB(name) (name == obj.name)
+
+
 // Load `field` from `key`.  `expr` is an expression that refers to
 // `data`, the JSON object at `key`.
 #define LOAD_FIELD(key, field, expr) \
@@ -40,9 +44,12 @@ using json::JSON;
 
 
 // Save a field where converting to JSON only requires invoking one of
-// the `JSON` constructors.
-#define SAVE_KEY_FIELD_CTOR(name) \
-  obj[#name] = JSON(m_##name) /* user ; */
+// the `JSON` constructors.  But only if the value is different from the
+// default.
+#define SAVE_KEY_FIELD_CTOR(name)  \
+  if (m_##name != dflt.m_##name) { \
+    obj[#name] = JSON(m_##name);   \
+  }
 
 
 // ----------------------- AnalogThresholdConfig -----------------------
@@ -58,34 +65,67 @@ AnalogThresholdConfig::AnalogThresholdConfig()
 {}
 
 
+#define X_ATC_FIELDS          \
+  X(triggerDeadZone)          \
+  X(rightStickDeadZone)       \
+  X(leftStickWalkThreshold)   \
+  X(leftStickRunThreshold)    \
+  X(leftStickSprintThreshold)
+
+
+bool AnalogThresholdConfig::operator==(
+  AnalogThresholdConfig const &obj) const
+{
+  #define X(name) EMEMB(m_##name) &&
+
+  return X_ATC_FIELDS
+         true;
+
+  #undef X
+}
+
+
 void AnalogThresholdConfig::loadFromJSON(JSON const &obj)
 {
-  LOAD_KEY_FIELD(triggerDeadZone, data.ToInt());
-  LOAD_KEY_FIELD(rightStickDeadZone, data.ToInt());
-  LOAD_KEY_FIELD(leftStickWalkThreshold, data.ToInt());
-  LOAD_KEY_FIELD(leftStickRunThreshold, data.ToInt());
-  LOAD_KEY_FIELD(leftStickSprintThreshold, data.ToInt());
+  #define X(name) \
+    LOAD_KEY_FIELD(name, data.ToInt());
+
+  X_ATC_FIELDS
+
+  #undef X
 }
 
 
 JSON AnalogThresholdConfig::saveToJSON() const
 {
   JSON obj = json::Object();
+  AnalogThresholdConfig dflt;
 
-  SAVE_KEY_FIELD_CTOR(triggerDeadZone);
-  SAVE_KEY_FIELD_CTOR(rightStickDeadZone);
-  SAVE_KEY_FIELD_CTOR(leftStickWalkThreshold);
-  SAVE_KEY_FIELD_CTOR(leftStickRunThreshold);
-  SAVE_KEY_FIELD_CTOR(leftStickSprintThreshold);
+  #define X(name) \
+    SAVE_KEY_FIELD_CTOR(name);
+
+  X_ATC_FIELDS
+
+  #undef X
 
   return obj;
 }
+
+
+#undef X_ATC_FIELDS
 
 
 // ------------------------- ParryTimerConfig --------------------------
 ParryTimerConfig::ParryTimerConfig()
   // Defaults in class body.
 {}
+
+
+#define X_PTC_FIELDS \
+  X(durationMS)      \
+  X(numSegments)     \
+  X(activeStartMS)   \
+  X(activeEndMS)
 
 
 bool ParryTimerConfig::isActive(int elapsedMS) const
@@ -95,26 +135,45 @@ bool ParryTimerConfig::isActive(int elapsedMS) const
 }
 
 
+bool ParryTimerConfig::operator==(ParryTimerConfig const &obj) const
+{
+  #define X(name) EMEMB(m_##name) &&
+
+  return X_PTC_FIELDS
+         true;
+
+  #undef X
+}
+
+
 void ParryTimerConfig::loadFromJSON(json::JSON const &obj)
 {
-  LOAD_KEY_INT_FIELD(durationMS);
-  LOAD_KEY_INT_FIELD(numSegments);
-  LOAD_KEY_INT_FIELD(activeStartMS);
-  LOAD_KEY_INT_FIELD(activeEndMS);
+  #define X(name) \
+    LOAD_KEY_INT_FIELD(name);
+
+  X_PTC_FIELDS
+
+  #undef X
 }
 
 
 json::JSON ParryTimerConfig::saveToJSON() const
 {
   JSON obj = json::Object();
+  ParryTimerConfig dflt;
 
-  SAVE_KEY_FIELD_CTOR(durationMS);
-  SAVE_KEY_FIELD_CTOR(numSegments);
-  SAVE_KEY_FIELD_CTOR(activeStartMS);
-  SAVE_KEY_FIELD_CTOR(activeEndMS);
+  #define X(name) \
+    SAVE_KEY_FIELD_CTOR(name);
+
+  X_PTC_FIELDS
+
+  #undef X
 
   return obj;
 }
+
+
+#undef X_PTC_FIELDS
 
 
 // --------------------------- LayoutParams ----------------------------
@@ -123,74 +182,76 @@ LayoutParams::LayoutParams()
 {}
 
 
+#define X_LP_FIELDS       \
+  X(textFontSizeDIPs)     \
+  X(faceButtonsY)         \
+  X(faceButtonsR)         \
+  X(roundButtonR)         \
+  X(dpadButtonR)          \
+  X(shoulderButtonsX)     \
+  X(shoulderButtonsR)     \
+  X(bumperVR)             \
+  X(triggerVR)            \
+  X(parryTimerX)          \
+  X(parryTimerY)          \
+  X(parryTimerHR)         \
+  X(parryTimerVR)         \
+  X(parryTimerHashHeight) \
+  X(stickR)               \
+  X(stickOutlineR)        \
+  X(stickMaxDeflectR)     \
+  X(stickThumbR)          \
+  X(chevronSeparation)    \
+  X(chevronHR)            \
+  X(chevronVR)            \
+  X(selStartX)            \
+  X(selStartHR)           \
+  X(selStartVR)           \
+  X(centralCircleY)       \
+  X(centralCircleR)       \
+  X(circleMargin)         \
+  X(lineWidthPixels)
+
+
+bool LayoutParams::operator==(LayoutParams const &obj) const
+{
+  #define X(name) EMEMB(m_##name) &&
+
+  return X_LP_FIELDS
+         true;
+
+  #undef X
+}
+
+
 void LayoutParams::loadFromJSON(JSON const &obj)
 {
-  LOAD_KEY_FLOAT_FIELD(textFontSizeDIPs);
-  LOAD_KEY_FLOAT_FIELD(faceButtonsY);
-  LOAD_KEY_FLOAT_FIELD(faceButtonsR);
-  LOAD_KEY_FLOAT_FIELD(roundButtonR);
-  LOAD_KEY_FLOAT_FIELD(dpadButtonR);
-  LOAD_KEY_FLOAT_FIELD(shoulderButtonsX);
-  LOAD_KEY_FLOAT_FIELD(shoulderButtonsR);
-  LOAD_KEY_FLOAT_FIELD(bumperVR);
-  LOAD_KEY_FLOAT_FIELD(triggerVR);
-  LOAD_KEY_FLOAT_FIELD(parryTimerX);
-  LOAD_KEY_FLOAT_FIELD(parryTimerY);
-  LOAD_KEY_FLOAT_FIELD(parryTimerHR);
-  LOAD_KEY_FLOAT_FIELD(parryTimerVR);
-  LOAD_KEY_FLOAT_FIELD(parryTimerHashHeight);
-  LOAD_KEY_FLOAT_FIELD(stickR);
-  LOAD_KEY_FLOAT_FIELD(stickOutlineR);
-  LOAD_KEY_FLOAT_FIELD(stickMaxDeflectR);
-  LOAD_KEY_FLOAT_FIELD(stickThumbR);
-  LOAD_KEY_FLOAT_FIELD(chevronSeparation);
-  LOAD_KEY_FLOAT_FIELD(chevronHR);
-  LOAD_KEY_FLOAT_FIELD(chevronVR);
-  LOAD_KEY_FLOAT_FIELD(selStartX);
-  LOAD_KEY_FLOAT_FIELD(selStartHR);
-  LOAD_KEY_FLOAT_FIELD(selStartVR);
-  LOAD_KEY_FLOAT_FIELD(centralCircleY);
-  LOAD_KEY_FLOAT_FIELD(centralCircleR);
-  LOAD_KEY_FLOAT_FIELD(circleMargin);
-  LOAD_KEY_FLOAT_FIELD(lineWidthPixels);
+  #define X(name) \
+    LOAD_KEY_FLOAT_FIELD(name);
+
+  X_LP_FIELDS
+
+  #undef X
 }
 
 
 JSON LayoutParams::saveToJSON() const
 {
   JSON obj = json::Object();
+  LayoutParams dflt;
 
-  SAVE_KEY_FIELD_CTOR(textFontSizeDIPs);
-  SAVE_KEY_FIELD_CTOR(faceButtonsY);
-  SAVE_KEY_FIELD_CTOR(faceButtonsR);
-  SAVE_KEY_FIELD_CTOR(roundButtonR);
-  SAVE_KEY_FIELD_CTOR(dpadButtonR);
-  SAVE_KEY_FIELD_CTOR(shoulderButtonsX);
-  SAVE_KEY_FIELD_CTOR(shoulderButtonsR);
-  SAVE_KEY_FIELD_CTOR(bumperVR);
-  SAVE_KEY_FIELD_CTOR(triggerVR);
-  SAVE_KEY_FIELD_CTOR(parryTimerX);
-  SAVE_KEY_FIELD_CTOR(parryTimerY);
-  SAVE_KEY_FIELD_CTOR(parryTimerHR);
-  SAVE_KEY_FIELD_CTOR(parryTimerVR);
-  SAVE_KEY_FIELD_CTOR(parryTimerHashHeight);
-  SAVE_KEY_FIELD_CTOR(stickR);
-  SAVE_KEY_FIELD_CTOR(stickOutlineR);
-  SAVE_KEY_FIELD_CTOR(stickMaxDeflectR);
-  SAVE_KEY_FIELD_CTOR(stickThumbR);
-  SAVE_KEY_FIELD_CTOR(chevronSeparation);
-  SAVE_KEY_FIELD_CTOR(chevronHR);
-  SAVE_KEY_FIELD_CTOR(chevronVR);
-  SAVE_KEY_FIELD_CTOR(selStartX);
-  SAVE_KEY_FIELD_CTOR(selStartHR);
-  SAVE_KEY_FIELD_CTOR(selStartVR);
-  SAVE_KEY_FIELD_CTOR(centralCircleY);
-  SAVE_KEY_FIELD_CTOR(centralCircleR);
-  SAVE_KEY_FIELD_CTOR(circleMargin);
-  SAVE_KEY_FIELD_CTOR(lineWidthPixels);
+  #define X(name) \
+    SAVE_KEY_FIELD_CTOR(name);
+
+  X_LP_FIELDS
+
+  #undef X
 
   return obj;
 }
+
+
+#undef X_LP_FIELDS
 
 
 // ----------------------------- GPVConfig -----------------------------
@@ -238,12 +299,36 @@ static COLORREF COLORREF_from_JSON(JSON arr)
 }
 
 
+// Not used at the moment, but retaining this in case I want to later.
+#define X_GPVC_FIELDS         \
+  X_COLOR(linesColor)         \
+  X_COLOR(highlightColor)     \
+  X_COLOR(parryActiveColor)   \
+  X_COLOR(parryInactiveColor) \
+  X_BOOL(showText)            \
+  X_BOOL(topmostWindow)       \
+  X_INT(windowLeft)           \
+  X_INT(windowTop)            \
+  X_INT(windowWidth)          \
+  X_INT(windowHeight)         \
+  X_INT(pollingIntervalMS)    \
+  X_INT(controllerID)         \
+  X_OBJ(analogThresholds)     \
+  X_OBJ(parryTimer)           \
+  X_OBJ(layoutParams)
+
+
 void GPVConfig::loadFromJSON(JSON const &obj)
 {
-  LOAD_FIELD("linesColorRGB", m_linesColorref, COLORREF_from_JSON(data));
-  LOAD_FIELD("highlightColorRGB", m_highlightColorref, COLORREF_from_JSON(data));
-  LOAD_FIELD("parryActiveColorRGB", m_parryActiveColorref, COLORREF_from_JSON(data));
-  LOAD_FIELD("parryInactiveColorRGB", m_parryInactiveColorref, COLORREF_from_JSON(data));
+  #define LOAD_KEY_FIELD_COLOR(name) \
+    LOAD_FIELD(#name, m_##name##ref, COLORREF_from_JSON(data));
+
+  LOAD_KEY_FIELD_COLOR(linesColor)
+  LOAD_KEY_FIELD_COLOR(highlightColor)
+  LOAD_KEY_FIELD_COLOR(parryActiveColor)
+  LOAD_KEY_FIELD_COLOR(parryInactiveColor)
+
+  #undef LOAD_KEY_FIELD_COLOR
 
   LOAD_KEY_FIELD(showText, data.ToBool());
   LOAD_KEY_FIELD(topmostWindow, data.ToBool());
@@ -254,28 +339,35 @@ void GPVConfig::loadFromJSON(JSON const &obj)
   LOAD_KEY_FIELD(pollingIntervalMS, data.ToInt());
   LOAD_KEY_FIELD(controllerID, data.ToInt());
 
-  if (obj.hasKey("analogThresholds")) {
-    m_analogThresholds.loadFromJSON(obj.at("analogThresholds"));
-  }
+  #define LOAD_KEY_FIELD_OBJ(name)          \
+    if (obj.hasKey(#name)) {                \
+      m_##name.loadFromJSON(obj.at(#name)); \
+    }
 
-  if (obj.hasKey("parryTimer")) {
-    m_parryTimer.loadFromJSON(obj.at("parryTimer"));
-  }
+  LOAD_KEY_FIELD_OBJ(analogThresholds)
+  LOAD_KEY_FIELD_OBJ(parryTimer)
+  LOAD_KEY_FIELD_OBJ(layoutParams)
 
-  if (obj.hasKey("layoutParams")) {
-    m_layoutParams.loadFromJSON(obj.at("layoutParams"));
-  }
+  #undef LOAD_KEY_FIELD_OBJ
 }
 
 
 JSON GPVConfig::saveToJSON() const
 {
   JSON obj = json::Object();
+  GPVConfig dflt;
 
-  obj["linesColorRGB"] = COLORREF_to_JSON(m_linesColorref);
-  obj["highlightColorRGB"] = COLORREF_to_JSON(m_highlightColorref);
-  obj["parryActiveColorRGB"] = COLORREF_to_JSON(m_parryActiveColorref);
-  obj["parryInactiveColorRGB"] = COLORREF_to_JSON(m_parryInactiveColorref);
+  #define SAVE_KEY_FIELD_COLOR(name)                      \
+    if (m_##name##ref != dflt.m_##name##ref) {            \
+      obj[#name "RGB"] = COLORREF_to_JSON(m_##name##ref); \
+    }
+
+  SAVE_KEY_FIELD_COLOR(linesColor)
+  SAVE_KEY_FIELD_COLOR(highlightColor)
+  SAVE_KEY_FIELD_COLOR(parryActiveColor)
+  SAVE_KEY_FIELD_COLOR(parryInactiveColor)
+
+  #undef SAVE_KEY_FIELD_COLOR
 
   SAVE_KEY_FIELD_CTOR(showText);
   SAVE_KEY_FIELD_CTOR(topmostWindow);
@@ -286,9 +378,16 @@ JSON GPVConfig::saveToJSON() const
   SAVE_KEY_FIELD_CTOR(pollingIntervalMS);
   SAVE_KEY_FIELD_CTOR(controllerID);
 
-  obj["analogThresholds"] = m_analogThresholds.saveToJSON();
-  obj["parryTimer"] = m_parryTimer.saveToJSON();
-  obj["layoutParams"] = m_layoutParams.saveToJSON();
+  #define SAVE_KEY_FIELD_OBJ(name)        \
+    if (m_##name != dflt.m_##name) {      \
+      obj[#name] = m_##name.saveToJSON(); \
+    }
+
+  SAVE_KEY_FIELD_OBJ(analogThresholds)
+  SAVE_KEY_FIELD_OBJ(parryTimer)
+  SAVE_KEY_FIELD_OBJ(layoutParams)
+
+  #undef SAVE_KEY_FIELD_OBJ
 
   return obj;
 }
@@ -328,6 +427,9 @@ std::string GPVConfig::saveToFile(std::string const &fname) const
     return std::strerror(errno);
   }
 }
+
+
+#undef X_GPVC_FIELDS
 
 
 // EOF

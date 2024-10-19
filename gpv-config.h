@@ -48,6 +48,10 @@ public:      // data
 public:      // methods
   AnalogThresholdConfig();
 
+  bool operator==(AnalogThresholdConfig const &obj) const;
+  bool operator!=(AnalogThresholdConfig const &obj) const
+    { return !operator==(obj); }
+
   // De/serialize as JSON.
   void loadFromJSON(json::JSON const &obj);
   json::JSON saveToJSON() const;
@@ -70,6 +74,10 @@ public:      // data
 
 public:      // methods
   ParryTimerConfig();
+
+  bool operator==(ParryTimerConfig const &obj) const;
+  bool operator!=(ParryTimerConfig const &obj) const
+    { return !operator==(obj); }
 
   // True if `elapsed` is in the active range.
   bool isActive(int elapsedMS) const;
@@ -170,6 +178,10 @@ public:      // data
 
 public:      // methods
   LayoutParams();
+
+  bool operator==(LayoutParams const &obj) const;
+  bool operator!=(LayoutParams const &obj) const
+    { return !operator==(obj); }
 
   // De/serialize as JSON.
   void loadFromJSON(json::JSON const &obj);
