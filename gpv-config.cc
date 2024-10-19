@@ -17,6 +17,15 @@
 using json::JSON;
 
 
+// If true, save all values.  Otherwise, only save values that are set
+// to something other than the default value.
+//
+// The false value was an experiment that didn't work as well as I'd
+// hoped.
+//
+bool const saveAllValues = true;
+
+
 // True if `name` of `this` equals the same field in `obj`.
 #define EMEMB(name) (name == obj.name)
 
@@ -46,9 +55,9 @@ using json::JSON;
 // Save a field where converting to JSON only requires invoking one of
 // the `JSON` constructors.  But only if the value is different from the
 // default.
-#define SAVE_KEY_FIELD_CTOR(name)  \
-  if (m_##name != dflt.m_##name) { \
-    obj[#name] = JSON(m_##name);   \
+#define SAVE_KEY_FIELD_CTOR(name)                     \
+  if (saveAllValues || (m_##name != dflt.m_##name)) { \
+    obj[#name] = JSON(m_##name);                      \
   }
 
 
@@ -357,9 +366,9 @@ JSON GPVConfig::saveToJSON() const
   JSON obj = json::Object();
   GPVConfig dflt;
 
-  #define SAVE_KEY_FIELD_COLOR(name)                      \
-    if (m_##name##ref != dflt.m_##name##ref) {            \
-      obj[#name "RGB"] = COLORREF_to_JSON(m_##name##ref); \
+  #define SAVE_KEY_FIELD_COLOR(name)                              \
+    if (saveAllValues || (m_##name##ref != dflt.m_##name##ref)) { \
+      obj[#name "RGB"] = COLORREF_to_JSON(m_##name##ref);         \
     }
 
   SAVE_KEY_FIELD_COLOR(linesColor)
@@ -378,9 +387,9 @@ JSON GPVConfig::saveToJSON() const
   SAVE_KEY_FIELD_CTOR(pollingIntervalMS);
   SAVE_KEY_FIELD_CTOR(controllerID);
 
-  #define SAVE_KEY_FIELD_OBJ(name)        \
-    if (m_##name != dflt.m_##name) {      \
-      obj[#name] = m_##name.saveToJSON(); \
+  #define SAVE_KEY_FIELD_OBJ(name)                      \
+    if (saveAllValues || (m_##name != dflt.m_##name)) { \
+      obj[#name] = m_##name.saveToJSON();               \
     }
 
   SAVE_KEY_FIELD_OBJ(analogThresholds)
