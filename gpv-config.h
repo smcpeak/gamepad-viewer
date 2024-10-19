@@ -72,6 +72,9 @@ public:      // data
   int m_activeStartMS = 1000 * 6 / 30;
   int m_activeEndMS = 1000 * 12 / 30;
 
+  // If true, show the elapsed time in milliseconds as text too.
+  bool m_showElapsedTime = false;
+
 public:      // methods
   ParryTimerConfig();
 
@@ -134,6 +137,13 @@ public:      // data
 
   // Height of hash marks as a proportion of the meter height.
   float m_parryTimerHashHeight = 0.25;
+
+  // Location of the top-left corner of the elapsed parry time text, in
+  // proportional units relative to the parry timer region.  Thus, (0,1)
+  // represents the bottom-left corner of that region.  This is only
+  // shown if `ParryTimerConfig::m_showElapsedTime` is true.
+  float m_parryElapsedTimeX = 0;
+  float m_parryElapsedTimeY = 1;
 
   // Radius of each stick display cluster.
   float m_stickR = 0.25;

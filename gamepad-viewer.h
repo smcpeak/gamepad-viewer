@@ -275,6 +275,9 @@ public:      // methods
   // Set as topmost or not depending on `tm`.
   void setTopmost(bool tm);
 
+  // Toggle whether we are showing the parry timer as text.
+  void toggleShowParryTimeText();
+
   // Return the name of the file in which configuration information is
   // stored.
   std::string getConfigFilename() const;

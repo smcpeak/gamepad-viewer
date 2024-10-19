@@ -43,6 +43,10 @@ bool const saveAllValues = true;
   LOAD_FIELD(#name, m_##name, expr)
 
 
+// For when the data type is `bool`.
+#define LOAD_KEY_BOOL_FIELD(name) \
+  LOAD_FIELD(#name, m_##name, data.ToBool())
+
 // For when the data type is `int`.
 #define LOAD_KEY_INT_FIELD(name) \
   LOAD_FIELD(#name, m_##name, data.ToInt())
@@ -130,11 +134,12 @@ ParryTimerConfig::ParryTimerConfig()
 {}
 
 
-#define X_PTC_FIELDS \
-  X(durationMS)      \
-  X(numSegments)     \
-  X(activeStartMS)   \
-  X(activeEndMS)
+#define X_PTC_FIELDS       \
+  X(durationMS,      INT)  \
+  X(numSegments,     INT)  \
+  X(activeStartMS,   INT)  \
+  X(activeEndMS,     INT)  \
+  X(showElapsedTime, BOOL)
 
 
 bool ParryTimerConfig::isActive(int elapsedMS) const
@@ -146,7 +151,7 @@ bool ParryTimerConfig::isActive(int elapsedMS) const
 
 bool ParryTimerConfig::operator==(ParryTimerConfig const &obj) const
 {
-  #define X(name) EMEMB(m_##name) &&
+  #define X(name, TYPE) EMEMB(m_##name) &&
 
   return X_PTC_FIELDS
          true;
@@ -157,8 +162,8 @@ bool ParryTimerConfig::operator==(ParryTimerConfig const &obj) const
 
 void ParryTimerConfig::loadFromJSON(json::JSON const &obj)
 {
-  #define X(name) \
-    LOAD_KEY_INT_FIELD(name);
+  #define X(name, TYPE) \
+    LOAD_KEY_##TYPE##_FIELD(name);
 
   X_PTC_FIELDS
 
@@ -171,7 +176,7 @@ json::JSON ParryTimerConfig::saveToJSON() const
   JSON obj = json::Object();
   ParryTimerConfig dflt;
 
-  #define X(name) \
+  #define X(name, TYPE) \
     SAVE_KEY_FIELD_CTOR(name);
 
   X_PTC_FIELDS
@@ -206,6 +211,8 @@ LayoutParams::LayoutParams()
   X(parryTimerHR)         \
   X(parryTimerVR)         \
   X(parryTimerHashHeight) \
+  X(parryElapsedTimeX)    \
+  X(parryElapsedTimeY)    \
   X(stickR)               \
   X(stickOutlineR)        \
   X(stickMaxDeflectR)     \

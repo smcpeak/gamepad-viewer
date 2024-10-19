@@ -70,6 +70,7 @@ enum {
   IDM_TOGGLE_TOPMOST,
   IDM_SMALLER_WINDOW,
   IDM_LARGER_WINDOW,
+  IDM_TOGGLE_PARRY_TIME_TEXT,
   IDM_CONTROLLER_0,
   IDM_CONTROLLER_1,
   IDM_CONTROLLER_2,
@@ -511,9 +512,36 @@ void GVMainWindow::drawControllerState()
 
   // Draw the parry timer.
   if (m_parryTimerActive) {
-    drawParryTimer(
+    // Compute a transform for the region of the timer.
+    D2D1_MATRIX_3X2_F parryTimerRegion =
       focusPtHVR(lp().m_parryTimerX,  lp().m_parryTimerY,
-                 lp().m_parryTimerHR, lp().m_parryTimerVR) * baseTransform);
+                 lp().m_parryTimerHR, lp().m_parryTimerVR) * baseTransform;
+
+    // Draw the main timer.
+    drawParryTimer(parryTimerRegion);
+
+    if (m_config.m_parryTimer.m_showElapsedTime) {
+      // Get the pixel coordinate of the bottom-left corner of the
+      // region.  We have to do this manually because drawing text
+      // really only works with an identity transform active.
+      D2D1_POINT_2F ptrBottomLeft =
+        D2D1::Matrix3x2F::ReinterpretBaseType(&parryTimerRegion)->
+          TransformPoint(D2D1_POINT_2F{lp().m_parryElapsedTimeX,
+                                       lp().m_parryElapsedTimeY});
+
+      // Draw the elapsed time as text too.
+      std::wostringstream oss;
+      oss << parryTimerElapsedMS();
+      std::wstring s = oss.str();
+      m_renderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
+      m_renderTarget->DrawText(
+        s.data(),
+        s.size(),
+        m_textFormat,
+        D2D1::RectF(ptrBottomLeft.x,         ptrBottomLeft.y,
+                    ptrBottomLeft.x + 100.0, ptrBottomLeft.y + 20.0),
+        m_textBrush);
+    }
   }
 
   // Draw the sticks.
@@ -1036,12 +1064,13 @@ void GVMainWindow::createContextMenu()
 {
   CALL_HANDLE_WINAPI(m_contextMenu, CreatePopupMenu);
 
-  appendContextMenu(IDM_SET_LINE_COLOR,      L"Set line color (C)");
-  appendContextMenu(IDM_SET_HIGHLIGHT_COLOR, L"Set highlight color (H)");
-  appendContextMenu(IDM_TOGGLE_TEXT,         L"Toggle text display (S)");
-  appendContextMenu(IDM_TOGGLE_TOPMOST,      L"Toggle topmost (T)");
-  appendContextMenu(IDM_SMALLER_WINDOW,      L"Make display smaller (-)");
-  appendContextMenu(IDM_LARGER_WINDOW,       L"Make display larger (+)");
+  appendContextMenu(IDM_SET_LINE_COLOR,         L"Set line color (C)");
+  appendContextMenu(IDM_SET_HIGHLIGHT_COLOR,    L"Set highlight color (H)");
+  appendContextMenu(IDM_TOGGLE_TEXT,            L"Toggle text display (S)");
+  appendContextMenu(IDM_TOGGLE_TOPMOST,         L"Toggle topmost (T)");
+  appendContextMenu(IDM_SMALLER_WINDOW,         L"Make display smaller (-)");
+  appendContextMenu(IDM_LARGER_WINDOW,          L"Make display larger (+)");
+  appendContextMenu(IDM_TOGGLE_PARRY_TIME_TEXT, L"Toggle showing parry elapsed time text");
 
   CALL_HANDLE_WINAPI(m_controllerIDMenu, CreatePopupMenu);
 
@@ -1145,6 +1174,10 @@ bool GVMainWindow::onCommand(WPARAM wParam, LPARAM lParam)
       resizeWindow(+50);
       return true;
 
+    case IDM_TOGGLE_PARRY_TIME_TEXT:
+      toggleShowParryTimeText();
+      return true;
+
     case IDM_CONTROLLER_0:
     case IDM_CONTROLLER_1:
     case IDM_CONTROLLER_2:
@@ -1222,16 +1255,22 @@ void GVMainWindow::runColorChooser(bool highlight)
 }
 
 
+static void toggleBool(bool &b)
+{
+  b = !b;
+}
+
+
 void GVMainWindow::toggleShowText()
 {
-  m_config.m_showText = !m_config.m_showText;
+  toggleBool(m_config.m_showText);
   invalidateAllPixels();
 }
 
 
 void GVMainWindow::toggleTopmost()
 {
-  m_config.m_topmostWindow = !m_config.m_topmostWindow;
+  toggleBool(m_config.m_topmostWindow);
   TRACE2(L"toggleTopmost: now " << m_config.m_topmostWindow);
 
   setTopmost(m_config.m_topmostWindow);
@@ -1245,6 +1284,13 @@ void GVMainWindow::setTopmost(bool tm)
     tm? HWND_TOPMOST : HWND_NOTOPMOST,
     0,0,0,0,                      // New pos/size, ignored.
     SWP_NOMOVE | SWP_NOSIZE);     // Ignore pos/size.
+}
+
+
+void GVMainWindow::toggleShowParryTimeText()
+{
+  toggleBool(m_config.m_parryTimer.m_showElapsedTime);
+  invalidateAllPixels();
 }
 
 
