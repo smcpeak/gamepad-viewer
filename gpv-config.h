@@ -65,8 +65,8 @@ public:      // data
   int m_numSegments = 20;
 
   // If elapsed time is in [start,end], parry is considered active.
-  int m_activeStartMS = 1000 * 7 / 30;
-  int m_activeEndMS = 1000 * 13 / 30;
+  int m_activeStartMS = 1000 * 6 / 30;
+  int m_activeEndMS = 1000 * 12 / 30;
 
 public:      // methods
   ParryTimerConfig();
