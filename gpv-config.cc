@@ -68,9 +68,7 @@ bool const saveAllValues = true;
 // ----------------------- AnalogThresholdConfig -----------------------
 AnalogThresholdConfig::AnalogThresholdConfig()
     // These defaults are tuned for Elden Ring.
-    //
-    // TODO: Shouldn't the dead zone be 127?  At 128 it fires, right?
-  : m_triggerDeadZone(128),
+  : m_triggerDeadZone(127),
     m_rightStickDeadZone(6600),
     m_leftStickWalkThreshold(16000),
     m_leftStickRunThreshold(25500),
