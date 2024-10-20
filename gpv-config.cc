@@ -335,7 +335,7 @@ static COLORREF COLORREF_from_JSON(JSON arr)
 void GPVConfig::loadFromJSON(JSON const &obj)
 {
   #define LOAD_KEY_FIELD_COLOR(name) \
-    LOAD_FIELD(#name, m_##name##ref, COLORREF_from_JSON(data));
+    LOAD_FIELD(#name "RGB", m_##name##ref, COLORREF_from_JSON(data));
 
   LOAD_KEY_FIELD_COLOR(linesColor)
   LOAD_KEY_FIELD_COLOR(highlightColor)
