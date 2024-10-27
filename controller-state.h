@@ -33,6 +33,10 @@ public:      // funcs
   // be regarded as in a "depressed" state based on `atConfig`.
   bool isTriggerPressed(AnalogThresholdConfig const &atConfig,
                         bool leftSide) const;
+
+  // Return true if `button`, which should be a single-bit constant like
+  // `XINPUT_GAMEPAD_B`, is pressed.
+  bool isButtonPressed(WORD button) const;
 };
 
 

@@ -194,36 +194,37 @@ LayoutParams::LayoutParams()
 {}
 
 
-#define X_LP_FIELDS       \
-  X(textFontSizeDIPs)     \
-  X(faceButtonsY)         \
-  X(faceButtonsR)         \
-  X(roundButtonR)         \
-  X(dpadButtonR)          \
-  X(shoulderButtonsX)     \
-  X(shoulderButtonsR)     \
-  X(bumperVR)             \
-  X(triggerVR)            \
-  X(parryTimerX)          \
-  X(parryTimerY)          \
-  X(parryTimerHR)         \
-  X(parryTimerVR)         \
-  X(parryTimerHashHeight) \
-  X(parryElapsedTimeX)    \
-  X(parryElapsedTimeY)    \
-  X(stickR)               \
-  X(stickOutlineR)        \
-  X(stickMaxDeflectR)     \
-  X(stickThumbR)          \
-  X(chevronSeparation)    \
-  X(chevronHR)            \
-  X(chevronVR)            \
-  X(selStartX)            \
-  X(selStartHR)           \
-  X(selStartVR)           \
-  X(centralCircleY)       \
-  X(centralCircleR)       \
-  X(circleMargin)         \
+#define X_LP_FIELDS             \
+  X(textFontSizeDIPs)           \
+  X(faceButtonsY)               \
+  X(faceButtonsR)               \
+  X(roundButtonR)               \
+  X(roundButtonTimerSizeFactor) \
+  X(dpadButtonR)                \
+  X(shoulderButtonsX)           \
+  X(shoulderButtonsR)           \
+  X(bumperVR)                   \
+  X(triggerVR)                  \
+  X(parryTimerX)                \
+  X(parryTimerY)                \
+  X(parryTimerHR)               \
+  X(parryTimerVR)               \
+  X(parryTimerHashHeight)       \
+  X(parryElapsedTimeX)          \
+  X(parryElapsedTimeY)          \
+  X(stickR)                     \
+  X(stickOutlineR)              \
+  X(stickMaxDeflectR)           \
+  X(stickThumbR)                \
+  X(chevronSeparation)          \
+  X(chevronHR)                  \
+  X(chevronVR)                  \
+  X(selStartX)                  \
+  X(selStartHR)                 \
+  X(selStartVR)                 \
+  X(centralCircleY)             \
+  X(centralCircleR)             \
+  X(circleMargin)               \
   X(lineWidthPixels)
 
 
@@ -281,8 +282,10 @@ GPVConfig::GPVConfig()
     m_windowWidth(400),
     m_windowHeight(400),
     m_pollingIntervalMS(16),                     // ~60 FPS.
+    m_dodgeTimerDurationMS(33),                  // 1 frame at 30 FPS.
     m_controllerID(0),                           // First controller.
     m_analogThresholds(),
+    m_parryTimer(),
     m_layoutParams()
 {}
 
@@ -326,6 +329,7 @@ static COLORREF COLORREF_from_JSON(JSON arr)
   X_INT(windowWidth)          \
   X_INT(windowHeight)         \
   X_INT(pollingIntervalMS)    \
+  X_INT(dodgeTimerDurationMS) \
   X_INT(controllerID)         \
   X_OBJ(analogThresholds)     \
   X_OBJ(parryTimer)           \
@@ -351,6 +355,7 @@ void GPVConfig::loadFromJSON(JSON const &obj)
   LOAD_KEY_FIELD(windowWidth, data.ToInt());
   LOAD_KEY_FIELD(windowHeight, data.ToInt());
   LOAD_KEY_FIELD(pollingIntervalMS, data.ToInt());
+  LOAD_KEY_FIELD(dodgeTimerDurationMS, data.ToInt());
   LOAD_KEY_FIELD(controllerID, data.ToInt());
 
   #define LOAD_KEY_FIELD_OBJ(name)          \
@@ -390,6 +395,7 @@ JSON GPVConfig::saveToJSON() const
   SAVE_KEY_FIELD_CTOR(windowWidth);
   SAVE_KEY_FIELD_CTOR(windowHeight);
   SAVE_KEY_FIELD_CTOR(pollingIntervalMS);
+  SAVE_KEY_FIELD_CTOR(dodgeTimerDurationMS);
   SAVE_KEY_FIELD_CTOR(controllerID);
 
   #define SAVE_KEY_FIELD_OBJ(name)                      \

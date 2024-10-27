@@ -103,6 +103,7 @@ GVMainWindow::GVMainWindow()
     m_controllerState(),
     m_prevControllerState(),
     m_parryTimer(),
+    m_dodgeTimer(),
     m_lastDragPoint{},
     m_movingWindow(false),
     m_lastShownControllerID(-1)
@@ -189,22 +190,42 @@ void GVMainWindow::pollControllerState()
   m_prevControllerState = m_controllerState;
   m_controllerState.poll(m_config.m_controllerID);
 
-  // Possibly expire the parry timer.
+  // Possibly expire the timers.
   m_parryTimer.possiblyExpire(m_controllerState.m_pollTimeMS,
                               m_config.m_parryTimer.m_durationMS);
+  m_dodgeTimer.possiblyExpire(m_controllerState.m_pollTimeMS,
+                              m_config.m_dodgeTimerDurationMS);
 
-  // Possibly start the parry timer.
-  bool const leftSide = true;
-  AnalogThresholdConfig const &atConfig = m_config.m_analogThresholds;
-  if (!m_parryTimer.isRunning() &&
-      m_prevControllerState.m_hasInputState &&
-      m_controllerState.m_hasInputState &&
-      !m_prevControllerState.isTriggerPressed(atConfig, leftSide) &&
-      m_controllerState.isTriggerPressed(atConfig, leftSide))
-  {
-    // Upon pressing L2, start the timer.
-    m_parryTimer.startTimer(m_controllerState.m_pollTimeMS);
+  // Possibly start the timers.
+  if (m_prevControllerState.m_hasInputState &&
+      m_controllerState.m_hasInputState) {
+    // Parry timer.
+    bool const leftSide = true;
+    AnalogThresholdConfig const &atConfig = m_config.m_analogThresholds;
+    if (!m_parryTimer.isRunning() &&
+        !m_prevControllerState.isTriggerPressed(atConfig, leftSide) &&
+        m_controllerState.isTriggerPressed(atConfig, leftSide))
+    {
+      // Upon pressing L2, start the timer.
+      m_parryTimer.startTimer(m_controllerState.m_pollTimeMS);
+    }
+
+    // Dodge timer.
+    if (!m_dodgeTimer.isRunning() &&
+        m_prevControllerState.isButtonPressed(XINPUT_GAMEPAD_B) &&
+        !m_controllerState.isButtonPressed(XINPUT_GAMEPAD_B))
+    {
+      // Upon *releasing* B/Circle, start the timer.
+      m_dodgeTimer.startTimer(m_controllerState.m_pollTimeMS);
+    }
   }
+}
+
+
+bool GVMainWindow::isAnyButtonTimerRunning() const
+{
+  return m_parryTimer.isRunning() ||
+         m_dodgeTimer.isRunning();
 }
 
 
@@ -330,7 +351,7 @@ void GVMainWindow::onTimer(WPARAM wParam)
   switch (wParam) {
     case IDT_POLL_CONTROLLER: {
       DWORD prevPN = inputState().dwPacketNumber;
-      bool prevParryTimerRunning = m_parryTimer.isRunning();
+      bool prevAnyButtonTimerRunning = isAnyButtonTimerRunning();
 
       pollControllerState();
 
@@ -342,12 +363,12 @@ void GVMainWindow::onTimer(WPARAM wParam)
         // The data is for a different controller.
         m_lastShownControllerID != m_config.m_controllerID ||
 
-        // The parry timer is currently running.
-        m_parryTimer.isRunning() ||
+        // A button timer is currently running.
+        isAnyButtonTimerRunning() ||
 
-        // The parry timer was running on the previous update.  If it is
+        // A button timer was running on the previous update.  If it is
         // not now running, we need to redraw to remove its display.
-        prevParryTimerRunning
+        prevAnyButtonTimerRunning
       ) {
         // Redraw to show the new state.
         invalidateAllPixels();
@@ -695,16 +716,32 @@ void GVMainWindow::drawRoundButtons(
   WORD buttons = inputState().Gamepad.wButtons;
 
   // Button masks, starting at top, then going clockwise.
-  WORD masks[4] = {
+  static WORD const masks[4] = {
     XINPUT_GAMEPAD_Y,        // Top, PS triangle
     XINPUT_GAMEPAD_B,        // Right, PS circle
     XINPUT_GAMEPAD_A,        // Bottom, PS X
     XINPUT_GAMEPAD_X,        // Left, PS square
   };
 
+  float const x = 0.5;
+  float const y = lp().m_roundButtonR;
+  float const r = lp().m_roundButtonR;
+
   for (int i=0; i < 4; ++i) {
-    drawCircle(focusPtR(0.5, lp().m_roundButtonR, lp().m_roundButtonR) * transform,
+    drawCircle(focusPtR(x, y, r) * transform,
       buttons & masks[i]);
+
+    if (masks[i] == XINPUT_GAMEPAD_B &&
+        m_dodgeTimer.isRunning()) {
+      // Draw a small circle inside the big one to indicate that the
+      // button was recently released.  The primary purpose is to ensure
+      // that a screen recording running at 30 FPS reliably contains
+      // evidence of the button press even if it is pressed and released
+      // very quickly.
+      float const rSmall = r * lp().m_roundButtonTimerSizeFactor;
+      drawCircle(focusPtR(x, y, rSmall) * transform,
+        true /*fill*/);
+    }
 
     // Rotate the transform 90 degrees around the center.
     transform = rotateAroundCenterDeg(90) * transform;

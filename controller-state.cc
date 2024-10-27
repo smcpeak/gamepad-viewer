@@ -59,4 +59,10 @@ bool ControllerState::isTriggerPressed(
 }
 
 
+bool ControllerState::isButtonPressed(WORD button) const
+{
+  return (m_inputState.Gamepad.wButtons & button) != 0;
+}
+
+
 // EOF

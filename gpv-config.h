@@ -112,6 +112,10 @@ public:      // data
   // Radius of one of the round face buttons.
   float m_roundButtonR = 0.20;
 
+  // If a just-released timer is shown inside a round button, its size
+  // is this much times the size of the circle it is inside.
+  float m_roundButtonTimerSizeFactor = 0.20;
+
   // Square radius of one of the dpad buttons.
   float m_dpadButtonR = 0.15;
 
@@ -227,6 +231,10 @@ public:      // data
 
   // Milliseconds between attempts to poll the controller.
   int m_pollingIntervalMS;
+
+  // Milliseconds after dodge button is released for which we should
+  // show a small dot inside the circle.  Zero disables that display.
+  int m_dodgeTimerDurationMS;
 
   // ID in [0,3] of the controller to poll.
   int m_controllerID;

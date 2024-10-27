@@ -94,6 +94,9 @@ public:      // data
   // Timer associated with L2 parry.
   ButtonTimer m_parryTimer;
 
+  // Timer associated with dodge button (XBox B, PlayStation circle).
+  ButtonTimer m_dodgeTimer;
+
   // Last point where the mouse was seen pressed.
   POINT m_lastDragPoint;
 
@@ -118,6 +121,9 @@ public:      // methods
 
   // Set `m_controllerState` by polling the controller.
   void pollControllerState();
+
+  // Is any button timer currently running?
+  bool isAnyButtonTimerRunning() const;
 
   // Current state of buttons, etc.
   XINPUT_STATE const &inputState() const;

@@ -37,7 +37,22 @@ The main features are:
 * The trigger and thumb sticks have configurable dead zones, by default
   tuned to approximately match what Elden Ring uses.
 
-* Customizable layout, albeit by editing a JSON configuration file.
+* Customizable layout, albeit by editing a JSON configuration file.  See
+  the `gpv-config.h` source code for a description of the fields.
+
+Features for Elden Ring specifically:
+
+* Whenever L2 is pressed, the viewer briefly displays a timer, with the
+  active parry frames for (by default) Carrian Retaliation indicated
+  with a red color.  This is useful when reviewing recorded game footage
+  to see whether a parry attempt had the right timing.
+
+* Whenever B/Circle is released, a small dot appears inside the
+  corresponding button indicator for 33ms afterwards, which ensures that
+  a 30 FPS recording contains evidence of a button press, even if it is
+  pressed for less than one frame and hence the recording may not show
+  it filled (pressed) at any point.  (I may add that for other buttons
+  too in the future.)
 
 
 ## Build instructions
