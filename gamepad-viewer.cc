@@ -102,8 +102,7 @@ GVMainWindow::GVMainWindow()
     m_config(),
     m_controllerState(),
     m_prevControllerState(),
-    m_parryTimerActive(false),
-    m_parryTimerStartMS(0),
+    m_parryTimer(),
     m_lastDragPoint{},
     m_movingWindow(false),
     m_lastShownControllerID(-1)
@@ -191,24 +190,20 @@ void GVMainWindow::pollControllerState()
   m_controllerState.poll(m_config.m_controllerID);
 
   // Possibly expire the parry timer.
-  int elapsed = (int)parryTimerElapsedMS();
-  if (m_parryTimerActive &&
-      elapsed > m_config.m_parryTimer.m_durationMS) {
-    m_parryTimerActive = false;
-  }
+  m_parryTimer.possiblyExpire(m_controllerState.m_pollTimeMS,
+                              m_config.m_parryTimer.m_durationMS);
 
-  // Check for L2 being pressed, and it was previously not pressed.
-  bool leftSide = true;
+  // Possibly start the parry timer.
+  bool const leftSide = true;
   AnalogThresholdConfig const &atConfig = m_config.m_analogThresholds;
-  if (!m_parryTimerActive &&
+  if (!m_parryTimer.isRunning() &&
       m_prevControllerState.m_hasInputState &&
       m_controllerState.m_hasInputState &&
       !m_prevControllerState.isTriggerPressed(atConfig, leftSide) &&
       m_controllerState.isTriggerPressed(atConfig, leftSide))
   {
     // Upon pressing L2, start the timer.
-    m_parryTimerActive = true;
-    m_parryTimerStartMS = m_controllerState.m_pollTimeMS;
+    m_parryTimer.startTimer(m_controllerState.m_pollTimeMS);
   }
 }
 
@@ -221,19 +216,13 @@ XINPUT_STATE const &GVMainWindow::inputState() const
 
 DWORD GVMainWindow::parryTimerElapsedMS() const
 {
-  if (m_parryTimerActive) {
-    // This uses wraparound arithmetic, which should be fine.
-    return m_controllerState.m_pollTimeMS - m_parryTimerStartMS;
-  }
-  else {
-    return 0;
-  }
+  return m_parryTimer.elapsedMS(m_controllerState.m_pollTimeMS);
 }
 
 
 bool GVMainWindow::isParryActive() const
 {
-  if (m_parryTimerActive) {
+  if (m_parryTimer.isRunning()) {
     return m_config.m_parryTimer.isActive((int)parryTimerElapsedMS());
   }
   else {
@@ -341,7 +330,7 @@ void GVMainWindow::onTimer(WPARAM wParam)
   switch (wParam) {
     case IDT_POLL_CONTROLLER: {
       DWORD prevPN = inputState().dwPacketNumber;
-      bool prevParryTimerActive = m_parryTimerActive;
+      bool prevParryTimerRunning = m_parryTimer.isRunning();
 
       pollControllerState();
 
@@ -353,12 +342,12 @@ void GVMainWindow::onTimer(WPARAM wParam)
         // The data is for a different controller.
         m_lastShownControllerID != m_config.m_controllerID ||
 
-        // The parry timer is currently active.
-        m_parryTimerActive ||
+        // The parry timer is currently running.
+        m_parryTimer.isRunning() ||
 
-        // The parry timer was active on the previous update.  If it is
-        // not now active, we need to redraw to remove its display.
-        prevParryTimerActive
+        // The parry timer was running on the previous update.  If it is
+        // not now running, we need to redraw to remove its display.
+        prevParryTimerRunning
       ) {
         // Redraw to show the new state.
         invalidateAllPixels();
@@ -511,7 +500,7 @@ void GVMainWindow::drawControllerState()
     false /*left*/);
 
   // Draw the parry timer.
-  if (m_parryTimerActive) {
+  if (m_parryTimer.isRunning()) {
     // Compute a transform for the region of the timer.
     D2D1_MATRIX_3X2_F parryTimerRegion =
       focusPtHVR(lp().m_parryTimerX,  lp().m_parryTimerY,

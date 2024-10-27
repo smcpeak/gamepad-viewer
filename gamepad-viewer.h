@@ -7,6 +7,7 @@
 #define GAMEPAD_VIEWER_H
 
 #include "base-window.h"               // BaseWindow
+#include "button-timer.h"              // ButtonTimer
 #include "controller-state.h"          // ControllerState
 #include "gpv-config.h"                // GPVConfig
 
@@ -90,12 +91,8 @@ public:      // data
   // Controller input state during the previous polling cycle.
   ControllerState m_prevControllerState;
 
-  // If true, we are showing the L2 parry timer.
-  bool m_parryTimerActive;
-
-  // If `m_parryTimerActive`, the `GetTickCount()` value when the timer
-  // began.
-  DWORD m_parryTimerStartMS;
+  // Timer associated with L2 parry.
+  ButtonTimer m_parryTimer;
 
   // Last point where the mouse was seen pressed.
   POINT m_lastDragPoint;

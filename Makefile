@@ -45,6 +45,7 @@ LIBS += -lcomdlg32
 
 OBJS :=
 OBJS += base-window.o
+OBJS += button-timer.o
 OBJS += controller-state.o
 OBJS += gamepad-viewer.o
 OBJS += gpv-config.o
