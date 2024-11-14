@@ -1283,7 +1283,7 @@ bool GVMainWindow::onCommand(WPARAM wParam, LPARAM lParam)
 
     case IDM_ABOUT:
       MessageBox(m_hwnd,
-        L"Gamepad Viewer 1.3\n"
+        L"Gamepad Viewer 1.4\n"
         L"Copyright 2024 Scott McPeak\n"
         L"Licensed under the MIT open source license\n",
         L"Gamepad Viewer",
