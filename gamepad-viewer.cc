@@ -315,11 +315,12 @@ void GVMainWindow::createBrush(
 
 void GVMainWindow::createLinesBrushes()
 {
-  createBrush(m_textBrush, m_config.m_linesColorref);
-  createBrush(m_linesBrush, m_config.m_linesColorref);
-  createBrush(m_highlightBrush, m_config.m_highlightColorref);
-  createBrush(m_parryActiveBrush, m_config.m_parryActiveColorref);
-  createBrush(m_parryInactiveBrush, m_config.m_parryInactiveColorref);
+  createBrush(m_textBrush,           m_config.m_linesColorref);
+  createBrush(m_linesBrush,          m_config.m_linesColorref);
+  createBrush(m_highlightBrush,      m_config.m_highlightColorref);
+  createBrush(m_parryActiveBrush,    m_config.m_parryActiveColorref);
+  createBrush(m_parryInactiveBrush,  m_config.m_parryInactiveColorref);
+  createBrush(m_textBackgroundBrush, m_config.m_textBackgroundColorref);
 }
 
 
@@ -330,6 +331,7 @@ void GVMainWindow::destroyLinesBrushes()
   safeRelease(m_highlightBrush);
   safeRelease(m_parryActiveBrush);
   safeRelease(m_parryInactiveBrush);
+  safeRelease(m_textBackgroundBrush);
 }
 
 
@@ -343,6 +345,7 @@ ID2D1SolidColorBrush *GVMainWindow::brushForColorRole(
     case GVCR_HIGHLIGHT:               return m_highlightBrush;
     case GVCR_PARRY_ACTIVE:            return m_parryActiveBrush;
     case GVCR_PARRY_INACTIVE:          return m_parryInactiveBrush;
+    case GVCR_TEXT_BACKGROUND:         return m_textBackgroundBrush;
   }
 }
 
@@ -539,18 +542,30 @@ void GVMainWindow::drawControllerState()
           TransformPoint(D2D1_POINT_2F{lp().m_parryElapsedTimeX,
                                        lp().m_parryElapsedTimeY});
 
-      // Draw the elapsed time as text too.
+      // With `TimeY` at 1.0, the meter and text overlap slightly, so
+      // push the text down slightly.
+      ptrBottomLeft.y += 2;
+
+      // Compute a nominal rectangle to enclose the text.  This is
+      // larger than what will actually be used.
+      D2D1_RECT_F textRect =
+        D2D1::RectF(ptrBottomLeft.x,         ptrBottomLeft.y,
+                    ptrBottomLeft.x + 100.0, ptrBottomLeft.y + 20.0);
+
+      // Elapsed time as a string.
       std::wostringstream oss;
       oss << parryTimerElapsedMS();
       std::wstring s = oss.str();
+
+      // Drawing text requires the identity transform.
       m_renderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
-      m_renderTarget->DrawText(
-        s.data(),
-        s.size(),
-        m_textFormat,
-        D2D1::RectF(ptrBottomLeft.x,         ptrBottomLeft.y,
-                    ptrBottomLeft.x + 100.0, ptrBottomLeft.y + 20.0),
-        m_textBrush);
+
+      // Paint a background beneath the text to ensure it can be
+      // reliably read.  (Prior to adding the background, I've had cases
+      // where I could not read it in a game play recording due to the
+      // combination of low-contrast background and video compression
+      // effects.)
+      drawTextWithBackground(s, textRect, GVCR_TEXT_BACKGROUND);
     }
   }
 
@@ -690,6 +705,55 @@ void GVMainWindow::drawLine(
     brushForColorRole(color),
     lp().m_lineWidthPixels,            // strokeWidth
     m_strokeStyleFixedThickness);      // strokeStyle
+}
+
+
+void GVMainWindow::drawTextWithBackground(
+  std::wstring const &str,
+  D2D1_RECT_F const &textRect,
+  GVColorRole bgColorRole)
+{
+  // Make a "text layout" object to measure the text that will be drawn.
+  IDWriteTextLayout *textLayout = nullptr;
+  CALL_HR_WINAPI(m_writeFactory->CreateTextLayout,
+    str.data(),
+    str.size(),
+    m_textFormat,
+    textRect.right - textRect.left,
+    textRect.bottom - textRect.top,
+    &textLayout);
+  assert(textLayout);
+  SafeReleaseOnLeave releaseTextLayout(textLayout);
+
+  // Measure it.
+  DWRITE_TEXT_METRICS tm{};
+  CALL_HR_WINAPI(textLayout->GetMetrics,
+    &tm);
+
+  // The measured width is just a bit tight on the right side.
+  tm.width += 1;
+
+  // Get the rectangle that the metrics say the text will occupy.  The
+  // metrics structure contains coordinates that are relative to the
+  // upper-left corner of `textRect`.
+  float L = textRect.left + tm.left;
+  float T = textRect.top + tm.top;
+  D2D1_RECT_F layoutRect =
+    D2D1::RectF(L,            T,
+                L + tm.width, T + tm.height);
+
+  // Paint a background beneath the text.
+  m_renderTarget->FillRectangle(
+    layoutRect,
+    brushForColorRole(bgColorRole));
+
+  // Draw the text.
+  m_renderTarget->DrawText(
+    str.data(),
+    str.size(),
+    m_textFormat,
+    textRect,
+    m_textBrush);
 }
 
 

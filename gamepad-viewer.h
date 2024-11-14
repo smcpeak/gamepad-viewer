@@ -35,6 +35,10 @@ enum GVColorRole {
   // Color to indicate parry is inactive.
   GVCR_PARRY_INACTIVE,
 
+  // Background color behind the text that shows the milliseconds on
+  // the parry timer.
+  GVCR_TEXT_BACKGROUND,
+
   NUM_GV_COLOR_ROLES
 };
 
@@ -80,6 +84,9 @@ public:      // data
   // or inactive.
   ID2D1SolidColorBrush *m_parryActiveBrush;
   ID2D1SolidColorBrush *m_parryInactiveBrush;
+
+  // Painted behind the parry timer text.
+  ID2D1SolidColorBrush *m_textBackgroundBrush;
 
   // ------------------------- Other app state -------------------------
   // User-adjustable configuration.
@@ -205,6 +212,13 @@ public:      // methods
     float x2,
     float y2,
     GVColorRole color);
+
+  // Draw `str` within nominal `textRect`, painting the actually used
+  // region with `bgColorRole` first.
+  void drawTextWithBackground(
+    std::wstring const &str,
+    D2D1_RECT_F const &textRect,
+    GVColorRole bgColorRole);
 
   // Draw the round face buttons.
   void drawRoundButtons(D2D1_MATRIX_3X2_F transform);

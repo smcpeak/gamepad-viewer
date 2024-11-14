@@ -128,4 +128,23 @@ void safeRelease(T *&ptr)
 }
 
 
+// Call `safeRelease` on a pointer when this object exits scope.
+template <typename T>
+class SafeReleaseOnLeave {
+public:      // data
+  // Pointer to resource to be released.
+  T *m_ptr;
+
+public:
+  SafeReleaseOnLeave(T *ptr)
+    : m_ptr(ptr)
+  {}
+
+  ~SafeReleaseOnLeave()
+  {
+    safeRelease(m_ptr);
+  }
+};
+
+
 #endif // WINAPI_UTIL_H

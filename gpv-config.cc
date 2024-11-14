@@ -275,6 +275,7 @@ GPVConfig::GPVConfig()
     m_highlightColorref(RGB(53, 53, 242)),       // Dark blue, almost purple.
     m_parryActiveColorref(RGB(255, 0, 0)),
     m_parryInactiveColorref(RGB(128, 128, 128)),
+    m_textBackgroundColorref(RGB(32, 32, 32)),   // Dark gray.
     m_showText(false),
     m_topmostWindow(false),
     m_windowLeft(50),
@@ -317,22 +318,23 @@ static COLORREF COLORREF_from_JSON(JSON arr)
 
 
 // Not used at the moment, but retaining this in case I want to later.
-#define X_GPVC_FIELDS         \
-  X_COLOR(linesColor)         \
-  X_COLOR(highlightColor)     \
-  X_COLOR(parryActiveColor)   \
-  X_COLOR(parryInactiveColor) \
-  X_BOOL(showText)            \
-  X_BOOL(topmostWindow)       \
-  X_INT(windowLeft)           \
-  X_INT(windowTop)            \
-  X_INT(windowWidth)          \
-  X_INT(windowHeight)         \
-  X_INT(pollingIntervalMS)    \
-  X_INT(dodgeTimerDurationMS) \
-  X_INT(controllerID)         \
-  X_OBJ(analogThresholds)     \
-  X_OBJ(parryTimer)           \
+#define X_GPVC_FIELDS          \
+  X_COLOR(linesColor)          \
+  X_COLOR(highlightColor)      \
+  X_COLOR(parryActiveColor)    \
+  X_COLOR(parryInactiveColor)  \
+  X_COLOR(textBackgroundColor) \
+  X_BOOL(showText)             \
+  X_BOOL(topmostWindow)        \
+  X_INT(windowLeft)            \
+  X_INT(windowTop)             \
+  X_INT(windowWidth)           \
+  X_INT(windowHeight)          \
+  X_INT(pollingIntervalMS)     \
+  X_INT(dodgeTimerDurationMS)  \
+  X_INT(controllerID)          \
+  X_OBJ(analogThresholds)      \
+  X_OBJ(parryTimer)            \
   X_OBJ(layoutParams)
 
 
@@ -345,6 +347,7 @@ void GPVConfig::loadFromJSON(JSON const &obj)
   LOAD_KEY_FIELD_COLOR(highlightColor)
   LOAD_KEY_FIELD_COLOR(parryActiveColor)
   LOAD_KEY_FIELD_COLOR(parryInactiveColor)
+  LOAD_KEY_FIELD_COLOR(textBackgroundColor)
 
   #undef LOAD_KEY_FIELD_COLOR
 
@@ -385,6 +388,7 @@ JSON GPVConfig::saveToJSON() const
   SAVE_KEY_FIELD_COLOR(highlightColor)
   SAVE_KEY_FIELD_COLOR(parryActiveColor)
   SAVE_KEY_FIELD_COLOR(parryInactiveColor)
+  SAVE_KEY_FIELD_COLOR(textBackgroundColor)
 
   #undef SAVE_KEY_FIELD_COLOR
 

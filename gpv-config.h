@@ -206,6 +206,10 @@ public:      // methods
 // User configuration settings for the gamepad viewer.
 class GPVConfig {
 public:      // data
+  // NOTE: None of the colors can be black, because black is used as the
+  // transparency key color (and I cannot easily change that due to a
+  // bug in how Windows interprets transparency).
+
   // Color to use to draw the lines.
   COLORREF m_linesColorref;
 
@@ -215,6 +219,9 @@ public:      // data
   // Colors for active and inactive parry.
   COLORREF m_parryActiveColorref;
   COLORREF m_parryInactiveColorref;
+
+  // Color for text background.
+  COLORREF m_textBackgroundColorref;
 
   // If true, show the textual display of the controller inputs.
   bool m_showText;
