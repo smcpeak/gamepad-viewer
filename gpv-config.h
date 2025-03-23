@@ -245,7 +245,7 @@ public:      // data
 
   // Milliseconds after dodge button is released for which we should
   // show a small dot inside the circle.  Zero disables that display.
-  int m_dodgeTimerDurationMS;
+  int m_dodgeReleaseTimerDurationMS;
 
   // ID in [0,3] of the controller to poll.
   int m_controllerID;

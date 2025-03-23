@@ -104,7 +104,7 @@ GVMainWindow::GVMainWindow()
     m_controllerState(),
     m_prevControllerState(),
     m_parryTimer(),
-    m_dodgeTimer(),
+    m_dodgeReleaseTimer(),
     m_lastDragPoint{},
     m_movingWindow(false),
     m_lastShownControllerID(-1)
@@ -192,10 +192,12 @@ void GVMainWindow::pollControllerState()
   m_controllerState.poll(m_config.m_controllerID);
 
   // Possibly expire the timers.
-  m_parryTimer.possiblyExpire(m_controllerState.m_pollTimeMS,
-                              m_config.m_parryTimer.m_durationMS);
-  m_dodgeTimer.possiblyExpire(m_controllerState.m_pollTimeMS,
-                              m_config.m_dodgeTimerDurationMS);
+  m_parryTimer.possiblyExpire(
+    m_controllerState.m_pollTimeMS,
+    m_config.m_parryTimer.m_durationMS);
+  m_dodgeReleaseTimer.possiblyExpire(
+    m_controllerState.m_pollTimeMS,
+    m_config.m_dodgeReleaseTimerDurationMS);
 
   // Possibly start the timers.
   if (m_prevControllerState.m_hasInputState &&
@@ -212,12 +214,12 @@ void GVMainWindow::pollControllerState()
     }
 
     // Dodge timer.
-    if (!m_dodgeTimer.isRunning() &&
+    if (!m_dodgeReleaseTimer.isRunning() &&
         m_prevControllerState.isButtonPressed(XINPUT_GAMEPAD_B) &&
         !m_controllerState.isButtonPressed(XINPUT_GAMEPAD_B))
     {
       // Upon *releasing* B/Circle, start the timer.
-      m_dodgeTimer.startTimer(m_controllerState.m_pollTimeMS);
+      m_dodgeReleaseTimer.startTimer(m_controllerState.m_pollTimeMS);
     }
   }
 }
@@ -226,7 +228,7 @@ void GVMainWindow::pollControllerState()
 bool GVMainWindow::isAnyButtonTimerRunning() const
 {
   return m_parryTimer.isRunning() ||
-         m_dodgeTimer.isRunning();
+         m_dodgeReleaseTimer.isRunning();
 }
 
 
@@ -857,7 +859,7 @@ void GVMainWindow::drawRoundButtons(
       buttons & masks[i]);
 
     if (masks[i] == XINPUT_GAMEPAD_B &&
-        m_dodgeTimer.isRunning()) {
+        m_dodgeReleaseTimer.isRunning()) {
       // Draw a small circle inside the big one to indicate that the
       // button was recently released.  The primary purpose is to ensure
       // that a screen recording running at 30 FPS reliably contains

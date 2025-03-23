@@ -98,11 +98,12 @@ public:      // data
   // Controller input state during the previous polling cycle.
   ControllerState m_prevControllerState;
 
-  // Timer associated with L2 parry.
+  // Timer associated with pressing the parry button (L2).
   ButtonTimer m_parryTimer;
 
-  // Timer associated with dodge button (XBox B, PlayStation circle).
-  ButtonTimer m_dodgeTimer;
+  // Timer associated with releasing the dodge button (XBox B,
+  // PlayStation circle).
+  ButtonTimer m_dodgeReleaseTimer;
 
   // Last point where the mouse was seen pressed.
   POINT m_lastDragPoint;

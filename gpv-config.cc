@@ -284,7 +284,7 @@ GPVConfig::GPVConfig()
     m_windowWidth(400),
     m_windowHeight(400),
     m_pollingIntervalMS(16),                     // ~60 FPS.
-    m_dodgeTimerDurationMS(33),                  // 1 frame at 30 FPS.
+    m_dodgeReleaseTimerDurationMS(33),           // 1 frame at 30 FPS.
     m_controllerID(0),                           // First controller.
     m_analogThresholds(),
     m_parryTimer(),
@@ -319,23 +319,23 @@ static COLORREF COLORREF_from_JSON(JSON arr)
 
 
 // Not used at the moment, but retaining this in case I want to later.
-#define X_GPVC_FIELDS          \
-  X_COLOR(linesColor)          \
-  X_COLOR(highlightColor)      \
-  X_COLOR(parryActiveColor)    \
-  X_COLOR(parryInactiveColor)  \
-  X_COLOR(textBackgroundColor) \
-  X_BOOL(showText)             \
-  X_BOOL(topmostWindow)        \
-  X_INT(windowLeft)            \
-  X_INT(windowTop)             \
-  X_INT(windowWidth)           \
-  X_INT(windowHeight)          \
-  X_INT(pollingIntervalMS)     \
-  X_INT(dodgeTimerDurationMS)  \
-  X_INT(controllerID)          \
-  X_OBJ(analogThresholds)      \
-  X_OBJ(parryTimer)            \
+#define X_GPVC_FIELDS                \
+  X_COLOR(linesColor)                \
+  X_COLOR(highlightColor)            \
+  X_COLOR(parryActiveColor)          \
+  X_COLOR(parryInactiveColor)        \
+  X_COLOR(textBackgroundColor)       \
+  X_BOOL(showText)                   \
+  X_BOOL(topmostWindow)              \
+  X_INT(windowLeft)                  \
+  X_INT(windowTop)                   \
+  X_INT(windowWidth)                 \
+  X_INT(windowHeight)                \
+  X_INT(pollingIntervalMS)           \
+  X_INT(dodgeReleaseTimerDurationMS) \
+  X_INT(controllerID)                \
+  X_OBJ(analogThresholds)            \
+  X_OBJ(parryTimer)                  \
   X_OBJ(layoutParams)
 
 
@@ -359,7 +359,7 @@ void GPVConfig::loadFromJSON(JSON const &obj)
   LOAD_KEY_FIELD(windowWidth, data.ToInt());
   LOAD_KEY_FIELD(windowHeight, data.ToInt());
   LOAD_KEY_FIELD(pollingIntervalMS, data.ToInt());
-  LOAD_KEY_FIELD(dodgeTimerDurationMS, data.ToInt());
+  LOAD_KEY_FIELD(dodgeReleaseTimerDurationMS, data.ToInt());
   LOAD_KEY_FIELD(controllerID, data.ToInt());
 
   #define LOAD_KEY_FIELD_OBJ(name)          \
@@ -400,7 +400,7 @@ JSON GPVConfig::saveToJSON() const
   SAVE_KEY_FIELD_CTOR(windowWidth);
   SAVE_KEY_FIELD_CTOR(windowHeight);
   SAVE_KEY_FIELD_CTOR(pollingIntervalMS);
-  SAVE_KEY_FIELD_CTOR(dodgeTimerDurationMS);
+  SAVE_KEY_FIELD_CTOR(dodgeReleaseTimerDurationMS);
   SAVE_KEY_FIELD_CTOR(controllerID);
 
   #define SAVE_KEY_FIELD_OBJ(name)                      \
