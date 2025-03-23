@@ -137,6 +137,7 @@ ParryTimerConfig::ParryTimerConfig()
   X(numSegments,     INT)  \
   X(activeStartMS,   INT)  \
   X(activeEndMS,     INT)  \
+  X(showAccuracy,    BOOL) \
   X(showElapsedTime, BOOL)
 
 

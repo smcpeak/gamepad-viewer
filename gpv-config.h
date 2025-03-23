@@ -72,6 +72,10 @@ public:      // data
   int m_activeStartMS = 1000 * 6 / 30;
   int m_activeEndMS = 1000 * 12 / 30;
 
+  // If true, interpret the elapsed time as a number of frames early,
+  // late, or within the active parry window.
+  bool m_showAccuracy = false;
+
   // If true, show the elapsed time in milliseconds as text too.
   bool m_showElapsedTime = false;
 

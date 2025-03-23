@@ -70,6 +70,7 @@ enum {
   IDM_TOGGLE_TOPMOST,
   IDM_SMALLER_WINDOW,
   IDM_LARGER_WINDOW,
+  IDM_TOGGLE_PARRY_ACCURACY_TEXT,
   IDM_TOGGLE_PARRY_TIME_TEXT,
   IDM_CONTROLLER_0,
   IDM_CONTROLLER_1,
@@ -249,6 +250,53 @@ bool GVMainWindow::isParryActive() const
   else {
     return false;
   }
+}
+
+
+std::wstring GVMainWindow::parryAccuracyString() const
+{
+  ParryTimerConfig const &ptc = m_config.m_parryTimer;
+  int elapsedMS = (int)parryTimerElapsedMS();
+
+  std::wostringstream oss;
+
+  if (elapsedMS < ptc.m_activeStartMS) {
+    // The active window has not yet started, meaning the button was
+    // pressed too late.
+    oss << msToFrames(ptc.m_activeStartMS - elapsedMS) << " late";
+  }
+
+  else if (elapsedMS > ptc.m_activeEndMS) {
+    // The active window has already ended, meaning the button was
+    // pressed too early.
+    oss << msToFrames(elapsedMS - ptc.m_activeEndMS) << " early";
+  }
+
+  else {
+    // We are within the active window, so report the frame number on
+    // which the button was pressed, from among those that would have
+    // also led to a successful parry.  Frame 1 is the first in the
+    // window, meaning the button was pressed on the last possible
+    // frame.
+    oss << msToFrames(elapsedMS - ptc.m_activeStartMS) << " of "
+        << msToFrames(ptc.m_activeEndMS - ptc.m_activeStartMS);
+  }
+
+  return oss.str();
+}
+
+
+/*static*/ int GVMainWindow::msToFrames(int ms)
+{
+  // If we happen to press the button at the moment the active window
+  // starts, call that part of frame 1.  (In practice, this never
+  // happens, due to the granularity of the timer.)
+  if (ms == 0) {
+    ms = 1;
+  }
+
+  // There are 30 frames in 1000 milliseconds, and we want to round up.
+  return (ms * 30 + 999) / 1000;
 }
 
 
@@ -533,38 +581,51 @@ void GVMainWindow::drawControllerState()
     // Draw the main timer.
     drawParryTimer(parryTimerRegion);
 
-    if (m_config.m_parryTimer.m_showElapsedTime) {
-      // Get the pixel coordinate of the bottom-left corner of the
-      // region.  We have to do this manually because drawing text
-      // really only works with an identity transform active.
-      D2D1_POINT_2F ptrBottomLeft =
-        D2D1::Matrix3x2F::ReinterpretBaseType(&parryTimerRegion)->
-          TransformPoint(D2D1_POINT_2F{lp().m_parryElapsedTimeX,
-                                       lp().m_parryElapsedTimeY});
+    // Point to act as the upper-left corner of the next line of text to
+    // draw.  We start at the bottom-left corner of the parry timer
+    // region.  (We have to compute this manually because drawing text
+    // really only works with an identity transform active.)
+    D2D1_POINT_2F textCursor =
+      D2D1::Matrix3x2F::ReinterpretBaseType(&parryTimerRegion)->
+        TransformPoint(D2D1_POINT_2F{lp().m_parryElapsedTimeX,
+                                     lp().m_parryElapsedTimeY});
 
-      // With `TimeY` at 1.0, the meter and text overlap slightly, so
-      // push the text down slightly.
-      ptrBottomLeft.y += 2;
+    // With `TimeY` at 1.0, the meter and text overlap slightly, so push
+    // the text down slightly.
+    textCursor.y += 2;
 
+    // Drawing text requires the identity transform.
+    m_renderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
+
+    if (m_config.m_parryTimer.m_showAccuracy) {
       // Compute a nominal rectangle to enclose the text.  This is
       // larger than what will actually be used.
       D2D1_RECT_F textRect =
-        D2D1::RectF(ptrBottomLeft.x,         ptrBottomLeft.y,
-                    ptrBottomLeft.x + 100.0, ptrBottomLeft.y + 20.0);
-
-      // Elapsed time as a string.
-      std::wostringstream oss;
-      oss << parryTimerElapsedMS();
-      std::wstring s = oss.str();
-
-      // Drawing text requires the identity transform.
-      m_renderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
+        D2D1::RectF(textCursor.x,         textCursor.y,
+                    textCursor.x + 100.0, textCursor.y + 20.0);
 
       // Paint a background beneath the text to ensure it can be
       // reliably read.  (Prior to adding the background, I've had cases
       // where I could not read it in a game play recording due to the
       // combination of low-contrast background and video compression
       // effects.)
+      drawTextWithBackground(parryAccuracyString(),
+                             textRect, GVCR_TEXT_BACKGROUND);
+
+      // Move the cursor down before drawing the next line.
+      textCursor.y += 22;
+    }
+
+    if (m_config.m_parryTimer.m_showElapsedTime) {
+      D2D1_RECT_F textRect =
+        D2D1::RectF(textCursor.x,         textCursor.y,
+                    textCursor.x + 100.0, textCursor.y + 20.0);
+
+      // Elapsed time as a string.
+      std::wostringstream oss;
+      oss << parryTimerElapsedMS();
+      std::wstring s = oss.str();
+
       drawTextWithBackground(s, textRect, GVCR_TEXT_BACKGROUND);
     }
   }
@@ -1154,13 +1215,14 @@ void GVMainWindow::createContextMenu()
 {
   CALL_HANDLE_WINAPI(m_contextMenu, CreatePopupMenu);
 
-  appendContextMenu(IDM_SET_LINE_COLOR,         L"Set line color (C)");
-  appendContextMenu(IDM_SET_HIGHLIGHT_COLOR,    L"Set highlight color (H)");
-  appendContextMenu(IDM_TOGGLE_TEXT,            L"Toggle text display (S)");
-  appendContextMenu(IDM_TOGGLE_TOPMOST,         L"Toggle topmost (T)");
-  appendContextMenu(IDM_SMALLER_WINDOW,         L"Make display smaller (-)");
-  appendContextMenu(IDM_LARGER_WINDOW,          L"Make display larger (+)");
-  appendContextMenu(IDM_TOGGLE_PARRY_TIME_TEXT, L"Toggle showing parry elapsed time text");
+  appendContextMenu(IDM_SET_LINE_COLOR,             L"Set line color (C)");
+  appendContextMenu(IDM_SET_HIGHLIGHT_COLOR,        L"Set highlight color (H)");
+  appendContextMenu(IDM_TOGGLE_TEXT,                L"Toggle text display (S)");
+  appendContextMenu(IDM_TOGGLE_TOPMOST,             L"Toggle topmost (T)");
+  appendContextMenu(IDM_SMALLER_WINDOW,             L"Make display smaller (-)");
+  appendContextMenu(IDM_LARGER_WINDOW,              L"Make display larger (+)");
+  appendContextMenu(IDM_TOGGLE_PARRY_ACCURACY_TEXT, L"Toggle showing parry accuracy text");
+  appendContextMenu(IDM_TOGGLE_PARRY_TIME_TEXT,     L"Toggle showing parry elapsed time text");
 
   CALL_HANDLE_WINAPI(m_controllerIDMenu, CreatePopupMenu);
 
@@ -1262,6 +1324,10 @@ bool GVMainWindow::onCommand(WPARAM wParam, LPARAM lParam)
 
     case IDM_LARGER_WINDOW:
       resizeWindow(+50);
+      return true;
+
+    case IDM_TOGGLE_PARRY_ACCURACY_TEXT:
+      toggleShowParryAccuracyText();
       return true;
 
     case IDM_TOGGLE_PARRY_TIME_TEXT:
@@ -1374,6 +1440,13 @@ void GVMainWindow::setTopmost(bool tm)
     tm? HWND_TOPMOST : HWND_NOTOPMOST,
     0,0,0,0,                      // New pos/size, ignored.
     SWP_NOMOVE | SWP_NOSIZE);     // Ignore pos/size.
+}
+
+
+void GVMainWindow::toggleShowParryAccuracyText()
+{
+  toggleBool(m_config.m_parryTimer.m_showAccuracy);
+  invalidateAllPixels();
 }
 
 

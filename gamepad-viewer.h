@@ -143,6 +143,15 @@ public:      // methods
   // Is the parry effect active according to the timer and config?
   bool isParryActive() const;
 
+  // Evaluate the current parry timer value as a parry accuracy
+  // assessment, under the assumption that the frame we are showing is
+  // the frame where either damage was received (for a failed parry) or
+  // the game registered a successful parry.
+  std::wstring parryAccuracyString() const;
+
+  // Convert a number of milliseconds into a frame count (at 30 FPS).
+  static int msToFrames(int ms);
+
   // Return the client rectangle size as a D2D1_SIZE_U.
   D2D1_SIZE_U getClientRectSizeU() const;
 
@@ -291,6 +300,9 @@ public:      // methods
 
   // Set as topmost or not depending on `tm`.
   void setTopmost(bool tm);
+
+  // Toggle whether we are showing the parry accuracy.
+  void toggleShowParryAccuracyText();
 
   // Toggle whether we are showing the parry timer as text.
   void toggleShowParryTimeText();
