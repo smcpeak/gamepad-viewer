@@ -17,15 +17,6 @@
 using json::JSON;
 
 
-// If true, save all values.  Otherwise, only save values that are set
-// to something other than the default value.
-//
-// The false value was an experiment that didn't work as well as I'd
-// hoped.
-//
-bool const saveAllValues = true;
-
-
 // True if `name` of `this` equals the same field in `obj`.
 #define EMEMB(name) (name == obj.name)
 
@@ -57,12 +48,9 @@ bool const saveAllValues = true;
 
 
 // Save a field where converting to JSON only requires invoking one of
-// the `JSON` constructors.  But only if the value is different from the
-// default.
-#define SAVE_KEY_FIELD_CTOR(name)                     \
-  if (saveAllValues || (m_##name != dflt.m_##name)) { \
-    obj[#name] = JSON(m_##name);                      \
-  }
+// the `JSON` constructors.
+#define SAVE_KEY_FIELD_CTOR(name) \
+  obj[#name] = JSON(m_##name);
 
 
 // ----------------------- AnalogThresholdConfig -----------------------
@@ -110,7 +98,6 @@ void AnalogThresholdConfig::loadFromJSON(JSON const &obj)
 JSON AnalogThresholdConfig::saveToJSON() const
 {
   JSON obj = json::Object();
-  AnalogThresholdConfig dflt;
 
   #define X(name) \
     SAVE_KEY_FIELD_CTOR(name);
@@ -126,33 +113,99 @@ JSON AnalogThresholdConfig::saveToJSON() const
 #undef X_ATC_FIELDS
 
 
-// ------------------------- ParryTimerConfig --------------------------
-ParryTimerConfig::ParryTimerConfig()
+// ------------------------- ButtonTimerConfig -------------------------
+ButtonTimerConfig::ButtonTimerConfig()
   // Defaults in class body.
 {}
 
 
+#define X_BTC_FIELDS      \
+  X(durationMS,      INT) \
+  X(activeStartMS,   INT) \
+  X(activeEndMS,     INT)
+
+
+bool ButtonTimerConfig::operator==(ButtonTimerConfig const &obj) const
+{
+  #define X(name, TYPE) EMEMB(m_##name) &&
+
+  return X_BTC_FIELDS
+         true;
+
+  #undef X
+}
+
+
+void ButtonTimerConfig::loadFromJSON(json::JSON const &obj)
+{
+  #define X(name, TYPE) \
+    LOAD_KEY_##TYPE##_FIELD(name);
+
+  X_BTC_FIELDS
+
+  #undef X
+}
+
+
+json::JSON ButtonTimerConfig::saveToJSON() const
+{
+  JSON obj = json::Object();
+
+  #define X(name, TYPE) \
+    SAVE_KEY_FIELD_CTOR(name);
+
+  X_BTC_FIELDS
+
+  #undef X
+
+  return obj;
+}
+
+
+#undef X_BTC_FIELDS
+
+
+// ------------------ DodgeInvulnerabilityTimerConfig ------------------
+DodgeInvulnerabilityTimerConfig::DodgeInvulnerabilityTimerConfig()
+  : ButtonTimerConfig()
+{
+  // Total duration: startup + invuln + recovery.  22 frames.
+  m_durationMS = 1000 * 22 / 30;
+
+  // Startup time, which is due to game input lag.  1 frame (typically).
+  m_activeStartMS = 1000 * 1 / 30;
+
+  // Time from start to the end of the active window: startup + invuln.
+  // 14 frames.
+  m_activeEndMS = 1000 * 14 / 30;
+}
+
+
+// ------------------------- ParryTimerConfig --------------------------
+ParryTimerConfig::ParryTimerConfig()
+  : ButtonTimerConfig()
+    // Non-inherited member defaults are specified in the class body.
+{
+  m_durationMS = 667;
+
+  // If elapsed time is in [start,end], parry is considered active.
+  m_activeStartMS = 1000 * 6 / 30;
+  m_activeEndMS = 1000 * 12 / 30;
+}
+
+
 #define X_PTC_FIELDS       \
-  X(durationMS,      INT)  \
   X(numSegments,     INT)  \
-  X(activeStartMS,   INT)  \
-  X(activeEndMS,     INT)  \
   X(showAccuracy,    BOOL) \
   X(showElapsedTime, BOOL)
-
-
-bool ParryTimerConfig::isActive(int elapsedMS) const
-{
-  return m_activeStartMS <= elapsedMS &&
-                            elapsedMS <= m_activeEndMS;
-}
 
 
 bool ParryTimerConfig::operator==(ParryTimerConfig const &obj) const
 {
   #define X(name, TYPE) EMEMB(m_##name) &&
 
-  return X_PTC_FIELDS
+  return ButtonTimerConfig::operator==(obj) &&
+         X_PTC_FIELDS
          true;
 
   #undef X
@@ -161,6 +214,8 @@ bool ParryTimerConfig::operator==(ParryTimerConfig const &obj) const
 
 void ParryTimerConfig::loadFromJSON(json::JSON const &obj)
 {
+  ButtonTimerConfig::loadFromJSON(obj);
+
   #define X(name, TYPE) \
     LOAD_KEY_##TYPE##_FIELD(name);
 
@@ -172,8 +227,7 @@ void ParryTimerConfig::loadFromJSON(json::JSON const &obj)
 
 json::JSON ParryTimerConfig::saveToJSON() const
 {
-  JSON obj = json::Object();
-  ParryTimerConfig dflt;
+  JSON obj = ButtonTimerConfig::saveToJSON();
 
   #define X(name, TYPE) \
     SAVE_KEY_FIELD_CTOR(name);
@@ -195,37 +249,39 @@ LayoutParams::LayoutParams()
 {}
 
 
-#define X_LP_FIELDS             \
-  X(textFontSizeDIPs)           \
-  X(faceButtonsY)               \
-  X(faceButtonsR)               \
-  X(roundButtonR)               \
-  X(roundButtonTimerSizeFactor) \
-  X(dpadButtonR)                \
-  X(shoulderButtonsX)           \
-  X(shoulderButtonsR)           \
-  X(bumperVR)                   \
-  X(triggerVR)                  \
-  X(parryTimerX)                \
-  X(parryTimerY)                \
-  X(parryTimerHR)               \
-  X(parryTimerVR)               \
-  X(parryTimerHashHeight)       \
-  X(parryElapsedTimeX)          \
-  X(parryElapsedTimeY)          \
-  X(stickR)                     \
-  X(stickOutlineR)              \
-  X(stickMaxDeflectR)           \
-  X(stickThumbR)                \
-  X(chevronSeparation)          \
-  X(chevronHR)                  \
-  X(chevronVR)                  \
-  X(selStartX)                  \
-  X(selStartHR)                 \
-  X(selStartVR)                 \
-  X(centralCircleY)             \
-  X(centralCircleR)             \
-  X(circleMargin)               \
+#define X_LP_FIELDS                \
+  X(textFontSizeDIPs)              \
+  X(faceButtonsY)                  \
+  X(faceButtonsR)                  \
+  X(roundButtonR)                  \
+  X(roundButtonTimerSizeFactor)    \
+  X(dpadButtonR)                   \
+  X(shoulderButtonsX)              \
+  X(shoulderButtonsR)              \
+  X(bumperVR)                      \
+  X(triggerVR)                     \
+  X(parryTimerX)                   \
+  X(parryTimerY)                   \
+  X(parryTimerHR)                  \
+  X(parryTimerVR)                  \
+  X(parryTimerHashHeight)          \
+  X(parryElapsedTimeX)             \
+  X(parryElapsedTimeY)             \
+  X(dodgeInvulnerabilityTimeX)     \
+  X(dodgeInvulnerabilityTimeY)     \
+  X(stickR)                        \
+  X(stickOutlineR)                 \
+  X(stickMaxDeflectR)              \
+  X(stickThumbR)                   \
+  X(chevronSeparation)             \
+  X(chevronHR)                     \
+  X(chevronVR)                     \
+  X(selStartX)                     \
+  X(selStartHR)                    \
+  X(selStartVR)                    \
+  X(centralCircleY)                \
+  X(centralCircleR)                \
+  X(circleMargin)                  \
   X(lineWidthPixels)
 
 
@@ -254,7 +310,6 @@ void LayoutParams::loadFromJSON(JSON const &obj)
 JSON LayoutParams::saveToJSON() const
 {
   JSON obj = json::Object();
-  LayoutParams dflt;
 
   #define X(name) \
     SAVE_KEY_FIELD_CTOR(name);
@@ -277,7 +332,10 @@ GPVConfig::GPVConfig()
     m_parryActiveColorref(RGB(255, 0, 0)),
     m_parryInactiveColorref(RGB(128, 128, 128)),
     m_textBackgroundColorref(RGB(32, 32, 32)),   // Dark gray.
+    m_dodgeActiveColorref(RGB(255, 0, 0)),
+    m_dodgeInactiveColorref(RGB(32, 32, 32)),
     m_showText(false),
+    m_showDodgeInvulnerabilityTimer(false),
     m_topmostWindow(false),
     m_windowLeft(50),
     m_windowTop(300),
@@ -287,6 +345,7 @@ GPVConfig::GPVConfig()
     m_dodgeReleaseTimerDurationMS(33),           // 1 frame at 30 FPS.
     m_controllerID(0),                           // First controller.
     m_analogThresholds(),
+    m_dodgeInvulnerabilityTimer(),
     m_parryTimer(),
     m_layoutParams()
 {}
@@ -319,23 +378,27 @@ static COLORREF COLORREF_from_JSON(JSON arr)
 
 
 // Not used at the moment, but retaining this in case I want to later.
-#define X_GPVC_FIELDS                \
-  X_COLOR(linesColor)                \
-  X_COLOR(highlightColor)            \
-  X_COLOR(parryActiveColor)          \
-  X_COLOR(parryInactiveColor)        \
-  X_COLOR(textBackgroundColor)       \
-  X_BOOL(showText)                   \
-  X_BOOL(topmostWindow)              \
-  X_INT(windowLeft)                  \
-  X_INT(windowTop)                   \
-  X_INT(windowWidth)                 \
-  X_INT(windowHeight)                \
-  X_INT(pollingIntervalMS)           \
-  X_INT(dodgeReleaseTimerDurationMS) \
-  X_INT(controllerID)                \
-  X_OBJ(analogThresholds)            \
-  X_OBJ(parryTimer)                  \
+#define X_GPVC_FIELDS                   \
+  X_COLOR(linesColor)                   \
+  X_COLOR(highlightColor)               \
+  X_COLOR(parryActiveColor)             \
+  X_COLOR(parryInactiveColor)           \
+  X_COLOR(textBackgroundColor)          \
+  X_COLOR(dodgeActiveColor)             \
+  X_COLOR(dodgeInactiveColor)           \
+  X_BOOL(showText)                      \
+  X_BOOL(showDodgeInvulnerabilityTimer) \
+  X_BOOL(topmostWindow)                 \
+  X_INT(windowLeft)                     \
+  X_INT(windowTop)                      \
+  X_INT(windowWidth)                    \
+  X_INT(windowHeight)                   \
+  X_INT(pollingIntervalMS)              \
+  X_INT(dodgeReleaseTimerDurationMS)    \
+  X_INT(controllerID)                   \
+  X_OBJ(analogThresholds)               \
+  X_OBJ(dodgeInvulnerabilityTimer)      \
+  X_OBJ(parryTimer)                     \
   X_OBJ(layoutParams)
 
 
@@ -349,10 +412,13 @@ void GPVConfig::loadFromJSON(JSON const &obj)
   LOAD_KEY_FIELD_COLOR(parryActiveColor)
   LOAD_KEY_FIELD_COLOR(parryInactiveColor)
   LOAD_KEY_FIELD_COLOR(textBackgroundColor)
+  LOAD_KEY_FIELD_COLOR(dodgeActiveColor)
+  LOAD_KEY_FIELD_COLOR(dodgeInactiveColor)
 
   #undef LOAD_KEY_FIELD_COLOR
 
   LOAD_KEY_FIELD(showText, data.ToBool());
+  LOAD_KEY_FIELD(showDodgeInvulnerabilityTimer, data.ToBool());
   LOAD_KEY_FIELD(topmostWindow, data.ToBool());
   LOAD_KEY_FIELD(windowLeft, data.ToInt());
   LOAD_KEY_FIELD(windowTop, data.ToInt());
@@ -368,6 +434,7 @@ void GPVConfig::loadFromJSON(JSON const &obj)
     }
 
   LOAD_KEY_FIELD_OBJ(analogThresholds)
+  LOAD_KEY_FIELD_OBJ(dodgeInvulnerabilityTimer)
   LOAD_KEY_FIELD_OBJ(parryTimer)
   LOAD_KEY_FIELD_OBJ(layoutParams)
 
@@ -378,22 +445,22 @@ void GPVConfig::loadFromJSON(JSON const &obj)
 JSON GPVConfig::saveToJSON() const
 {
   JSON obj = json::Object();
-  GPVConfig dflt;
 
-  #define SAVE_KEY_FIELD_COLOR(name)                              \
-    if (saveAllValues || (m_##name##ref != dflt.m_##name##ref)) { \
-      obj[#name "RGB"] = COLORREF_to_JSON(m_##name##ref);         \
-    }
+  #define SAVE_KEY_FIELD_COLOR(name) \
+    obj[#name "RGB"] = COLORREF_to_JSON(m_##name##ref);
 
   SAVE_KEY_FIELD_COLOR(linesColor)
   SAVE_KEY_FIELD_COLOR(highlightColor)
   SAVE_KEY_FIELD_COLOR(parryActiveColor)
   SAVE_KEY_FIELD_COLOR(parryInactiveColor)
   SAVE_KEY_FIELD_COLOR(textBackgroundColor)
+  SAVE_KEY_FIELD_COLOR(dodgeActiveColor)
+  SAVE_KEY_FIELD_COLOR(dodgeInactiveColor)
 
   #undef SAVE_KEY_FIELD_COLOR
 
   SAVE_KEY_FIELD_CTOR(showText);
+  SAVE_KEY_FIELD_CTOR(showDodgeInvulnerabilityTimer);
   SAVE_KEY_FIELD_CTOR(topmostWindow);
   SAVE_KEY_FIELD_CTOR(windowLeft);
   SAVE_KEY_FIELD_CTOR(windowTop);
@@ -403,12 +470,11 @@ JSON GPVConfig::saveToJSON() const
   SAVE_KEY_FIELD_CTOR(dodgeReleaseTimerDurationMS);
   SAVE_KEY_FIELD_CTOR(controllerID);
 
-  #define SAVE_KEY_FIELD_OBJ(name)                      \
-    if (saveAllValues || (m_##name != dflt.m_##name)) { \
-      obj[#name] = m_##name.saveToJSON();               \
-    }
+  #define SAVE_KEY_FIELD_OBJ(name) \
+    obj[#name] = m_##name.saveToJSON();
 
   SAVE_KEY_FIELD_OBJ(analogThresholds)
+  SAVE_KEY_FIELD_OBJ(dodgeInvulnerabilityTimer)
   SAVE_KEY_FIELD_OBJ(parryTimer)
   SAVE_KEY_FIELD_OBJ(layoutParams)
 

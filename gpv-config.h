@@ -58,19 +58,46 @@ public:      // methods
 };
 
 
-// Parameters related to the parry timer.
-class ParryTimerConfig {
+// Parameters for a button timer.
+class ButtonTimerConfig {
 public:      // data
-  // Duration of the timer in milliseconds.  This can be set to zero to
-  // disable the parry timer display.
-  int m_durationMS = 667;
+  // Total duration, after which the timer expires.
+  //
+  // This can be set to zero to disable the timer display.
+  int m_durationMS = 0;
 
+  // Startup time before the active window begins.
+  int m_activeStartMS = 0;
+
+  // Time from start to the end of the active window.
+  int m_activeEndMS = 0;
+
+public:
+  ButtonTimerConfig();
+
+  bool operator==(ButtonTimerConfig const &obj) const;
+  bool operator!=(ButtonTimerConfig const &obj) const
+    { return !operator==(obj); }
+
+  // De/serialize as JSON.
+  void loadFromJSON(json::JSON const &obj);
+  json::JSON saveToJSON() const;
+};
+
+
+// Parameters for the dodge invulnerability window timer.
+class DodgeInvulnerabilityTimerConfig : public ButtonTimerConfig {
+public:      // methods
+  // Set defaults for dodging.
+  DodgeInvulnerabilityTimerConfig();
+};
+
+
+// Parameters related to the parry timer.
+class ParryTimerConfig : public ButtonTimerConfig {
+public:      // data
   // Number of segments in the timer bar.
   int m_numSegments = 20;
-
-  // If elapsed time is in [start,end], parry is considered active.
-  int m_activeStartMS = 1000 * 6 / 30;
-  int m_activeEndMS = 1000 * 12 / 30;
 
   // If true, interpret the elapsed time as a number of frames early,
   // late, or within the active parry window.
@@ -85,9 +112,6 @@ public:      // methods
   bool operator==(ParryTimerConfig const &obj) const;
   bool operator!=(ParryTimerConfig const &obj) const
     { return !operator==(obj); }
-
-  // True if `elapsed` is in the active range.
-  bool isActive(int elapsedMS) const;
 
   // De/serialize as JSON.
   void loadFromJSON(json::JSON const &obj);
@@ -152,6 +176,11 @@ public:      // data
   // shown if `ParryTimerConfig::m_showElapsedTime` is true.
   float m_parryElapsedTimeX = 0;
   float m_parryElapsedTimeY = 1;
+
+  // Location of top-left corner of dodge timer text, relative to the
+  // entire gamepad viewer display.
+  float m_dodgeInvulnerabilityTimeX = 0.65;
+  float m_dodgeInvulnerabilityTimeY = 0.6;
 
   // Radius of each stick display cluster.
   float m_stickR = 0.25;
@@ -227,8 +256,15 @@ public:      // data
   // Color for text background.
   COLORREF m_textBackgroundColorref;
 
+  // Colors for active and inactive dodge.
+  COLORREF m_dodgeActiveColorref;
+  COLORREF m_dodgeInactiveColorref;
+
   // If true, show the textual display of the controller inputs.
   bool m_showText;
+
+  // True to show the invulnerability timer frame data.
+  bool m_showDodgeInvulnerabilityTimer;
 
   // If true, set our window to be on top of all others (that are not
   // also topmost).
@@ -252,6 +288,9 @@ public:      // data
 
   // Analog input thresholds.
   AnalogThresholdConfig m_analogThresholds;
+
+  // Dodge invulnerability timer configuration.
+  DodgeInvulnerabilityTimerConfig m_dodgeInvulnerabilityTimer;
 
   // Parry timer configuration.
   ParryTimerConfig m_parryTimer;

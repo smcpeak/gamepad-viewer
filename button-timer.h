@@ -32,6 +32,10 @@ public:      // data
   // if `m_running` is true.
   ClockValue m_startMS;
 
+  // If true, the timer is running, and the user has enqueued another
+  // input that should restart the timer immediately.
+  bool m_queued;
+
 public:      // funcs
   ButtonTimer();
 
@@ -40,9 +44,21 @@ public:      // funcs
   // Set the timer running.
   void startTimer(ClockValue currentMS);
 
+  // Start the timer, unless it is already running, in which case
+  // enqueue another run after the current one finishes.
+  void startOrEnqueueTimer(ClockValue currentMS);
+
   // If the timer has been running for more than `maxDurationMS`, set it
   // to the not-running state.
-  void possiblyExpire(ClockValue currentMS, ClockValue maxDurationMS);
+  //
+  // However, if `m_queued`, then instead start another run with the
+  // elapsed time as `queuedStartMS`.  The reason for the "queued start"
+  // is it allows the enqueued action to be as if it started a little
+  // bit in the past, which I use to skip the portion of the timer that
+  // would otherwise account for input lag in the game.
+  //
+  void possiblyExpire(ClockValue currentMS, ClockValue maxDurationMS,
+                      ClockValue queuedStartMS = 0);
 
   // Number of milliseconds since the timer started, or 0 if it is
   // not running.

@@ -39,6 +39,11 @@ enum GVColorRole {
   // the parry timer.
   GVCR_TEXT_BACKGROUND,
 
+  // Text background colors for dodge invulnerability timer, depending
+  // on whether it is active (invulnerable).
+  GVCR_DODGE_ACTIVE,
+  GVCR_DODGE_INACTIVE,
+
   NUM_GV_COLOR_ROLES
 };
 
@@ -88,6 +93,10 @@ public:      // data
   // Painted behind the parry timer text.
   ID2D1SolidColorBrush *m_textBackgroundBrush;
 
+  // Painted behind the dodge timer text.
+  ID2D1SolidColorBrush *m_dodgeActiveBrush;
+  ID2D1SolidColorBrush *m_dodgeInactiveBrush;
+
   // ------------------------- Other app state -------------------------
   // User-adjustable configuration.
   GPVConfig m_config;
@@ -104,6 +113,12 @@ public:      // data
   // Timer associated with releasing the dodge button (XBox B,
   // PlayStation circle).
   ButtonTimer m_dodgeReleaseTimer;
+
+  // Timer that tracks the invulnerability window associated with
+  // dodging.  This starts at the same time as the release timer, but
+  // then tracks both the invulnerability window and the recovery
+  // window, and also handles dodge queueing.
+  ButtonTimer m_dodgeInvulnerabilityTimer;
 
   // Last point where the mouse was seen pressed.
   POINT m_lastDragPoint;
@@ -136,22 +151,43 @@ public:      // methods
   // Current state of buttons, etc.
   XINPUT_STATE const &inputState() const;
 
+  // If the dodge invulnerability timer is active, return the number of
+  // milliseconds since its timer started.  Otherwise return 0.
+  DWORD dodgeInvulnerabilityTimerElapsedMS() const;
+
+  // Is the invulnerability effect active according to the timer and
+  // config?
+  //
+  // This is our best guess, based only on dodge button release events,
+  // whether the player should be invulnerable right now.  It can be
+  // wrong for many reasons, but should be more convenient, when
+  // reviewing recordings, than manually counting frames.
+  //
+  bool isDodgeInvulnerabilityActive() const;
+
   // If the parry timer is active, return the number of milliseconds
-  // since the parry timer started, assuming `m_parryTimerActive`.
-  // Otherwise return 0.
+  // since its.  Otherwise return 0.
   DWORD parryTimerElapsedMS() const;
 
   // Is the parry effect active according to the timer and config?
   bool isParryActive() const;
+
+  // Evaulate the current dodge timer value and classify it as being a
+  // certain number of frames before, after, or during the
+  // invulnerability window, returning that classification as a string.
+  // Also set `active` to true if invulnerability is active, and false
+  // otherwise.
+  //
+  // This is meant to be meaningful when reviewing a recording and
+  // examining the frame on which damage was taken (or would have been).
+  //
+  std::wstring dodgeAccuracyString(bool &active /*OUT*/) const;
 
   // Evaluate the current parry timer value as a parry accuracy
   // assessment, under the assumption that the frame we are showing is
   // the frame where either damage was received (for a failed parry) or
   // the game registered a successful parry.
   std::wstring parryAccuracyString() const;
-
-  // Convert a number of milliseconds into a frame count (at 30 FPS).
-  static int msToFrames(int ms);
 
   // Return the client rectangle size as a D2D1_SIZE_U.
   D2D1_SIZE_U getClientRectSizeU() const;
@@ -223,11 +259,11 @@ public:      // methods
     float y2,
     GVColorRole color);
 
-  // Draw `str` within nominal `textRect`, painting the actually used
-  // region with `bgColorRole` first.
+  // Draw `str` with its upper-left corner at `textCursor`, painting the
+  // actually used region with `bgColorRole` first.
   void drawTextWithBackground(
     std::wstring const &str,
-    D2D1_RECT_F const &textRect,
+    D2D1_POINT_2F const &textCursor,
     GVColorRole bgColorRole);
 
   // Draw the round face buttons.
@@ -307,6 +343,9 @@ public:      // methods
 
   // Toggle whether we are showing the parry timer as text.
   void toggleShowParryTimeText();
+
+  // Toggle whether to show the dodge invulnerability timer.
+  void toggleShowDodgeInvulnerabilityTimer();
 
   // Return the name of the file in which configuration information is
   // stored.

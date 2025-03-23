@@ -72,6 +72,7 @@ enum {
   IDM_LARGER_WINDOW,
   IDM_TOGGLE_PARRY_ACCURACY_TEXT,
   IDM_TOGGLE_PARRY_TIME_TEXT,
+  IDM_TOGGLE_DODGE_INVULNERABILITY_TIMER,
   IDM_CONTROLLER_0,
   IDM_CONTROLLER_1,
   IDM_CONTROLLER_2,
@@ -105,6 +106,7 @@ GVMainWindow::GVMainWindow()
     m_prevControllerState(),
     m_parryTimer(),
     m_dodgeReleaseTimer(),
+    m_dodgeInvulnerabilityTimer(),
     m_lastDragPoint{},
     m_movingWindow(false),
     m_lastShownControllerID(-1)
@@ -198,6 +200,10 @@ void GVMainWindow::pollControllerState()
   m_dodgeReleaseTimer.possiblyExpire(
     m_controllerState.m_pollTimeMS,
     m_config.m_dodgeReleaseTimerDurationMS);
+  m_dodgeInvulnerabilityTimer.possiblyExpire(
+    m_controllerState.m_pollTimeMS,
+    m_config.m_dodgeInvulnerabilityTimer.m_durationMS,
+    m_config.m_dodgeInvulnerabilityTimer.m_activeStartMS);
 
   // Possibly start the timers.
   if (m_prevControllerState.m_hasInputState &&
@@ -213,13 +219,18 @@ void GVMainWindow::pollControllerState()
       m_parryTimer.startTimer(m_controllerState.m_pollTimeMS);
     }
 
-    // Dodge timer.
-    if (!m_dodgeReleaseTimer.isRunning() &&
-        m_prevControllerState.isButtonPressed(XINPUT_GAMEPAD_B) &&
+    // Upon *releasing* B/Circle, start the dodge timer.
+    if (m_prevControllerState.isButtonPressed(XINPUT_GAMEPAD_B) &&
         !m_controllerState.isButtonPressed(XINPUT_GAMEPAD_B))
     {
-      // Upon *releasing* B/Circle, start the timer.
-      m_dodgeReleaseTimer.startTimer(m_controllerState.m_pollTimeMS);
+      // One timer simply tracks releasing the button.
+      if (!m_dodgeReleaseTimer.isRunning()) {
+        m_dodgeReleaseTimer.startTimer(m_controllerState.m_pollTimeMS);
+      }
+
+      // Another tracks the full lifecycle of invulnerability.
+      m_dodgeInvulnerabilityTimer.startOrEnqueueTimer(
+        m_controllerState.m_pollTimeMS);
     }
   }
 }
@@ -228,13 +239,121 @@ void GVMainWindow::pollControllerState()
 bool GVMainWindow::isAnyButtonTimerRunning() const
 {
   return m_parryTimer.isRunning() ||
-         m_dodgeReleaseTimer.isRunning();
+         m_dodgeReleaseTimer.isRunning() ||
+         m_dodgeInvulnerabilityTimer.isRunning();
 }
 
 
 XINPUT_STATE const &GVMainWindow::inputState() const
 {
   return m_controllerState.m_inputState;
+}
+
+
+// Convert a number of milliseconds into a frame count (at 30 FPS).
+static int msToFrames(int ms)
+{
+  // If we happen to press the button at the moment the active window
+  // starts, call that part of frame 1.  (In practice, this never
+  // happens, due to the granularity of the timer.)
+  if (ms == 0) {
+    ms = 1;
+  }
+
+  // There are 30 frames in 1000 milliseconds, and we want to round up.
+  return (ms * 30 + 999) / 1000;
+}
+
+
+namespace {
+  // Classification of the current time in comparison to the active time
+  // window of a button press effect.
+  enum ButtonWindowState {
+    BWS_BEFORE,              // Before active window.
+    BWS_ACTIVE,              // In active window.
+    BWS_AFTER,               // After active window.
+  };
+}
+
+
+// Classify a button press `elapsedMS` ago relative to the active
+// window described by `config`.
+//
+// In the case of BWS_BEFORE, set `frameDelta` to the number of frames
+// (at 30 FPS) by which the press was too late.
+//
+// In the case of BWS_ACTIVE, set `frameDelta` to the the frame number
+// on which the button was pressed, from among those that would have
+// also led to a successful action.  Frame 1 is the first in the window,
+// meaning the button was pressed on the last possible frame.  In this
+// case, also set `maxFrame` to the maximum value that would have led to
+// a successful action (which corresponds to the first possible frame on
+// which the button could have been pressed).
+//
+// In the case of BWS_AFTER, set `frameDelta` to the number of frames
+// by which the press was too early.
+//
+static ButtonWindowState getButtonWindowState(
+  ButtonTimerConfig const &config,
+  int elapsedMS,
+  int &frameDelta /*OUT*/,
+  int &maxFrame /*OUT*/)
+{
+  // Meaningless value for cases other than BWS_ACTIVE.
+  maxFrame = 0;
+
+  if (elapsedMS < config.m_activeStartMS) {
+    // The active window has not yet started.
+    frameDelta = msToFrames(config.m_activeStartMS - elapsedMS);
+    return BWS_BEFORE;
+  }
+
+  else if (elapsedMS > config.m_activeEndMS) {
+    // The active window has already ended.
+    frameDelta = msToFrames(elapsedMS - config.m_activeEndMS);
+    return BWS_AFTER;
+  }
+
+  else {
+    // We are within the active window.
+    frameDelta = msToFrames(elapsedMS - config.m_activeStartMS);
+    maxFrame = msToFrames(config.m_activeEndMS - config.m_activeStartMS);
+    return BWS_ACTIVE;
+  }
+}
+
+
+// True if we are in the active phase of the button described by
+// `config`.
+static bool isButtonActive(
+  ButtonTimerConfig const &config,
+  int elapsedMS)
+{
+  int frameDelta;
+  int maxFrame;
+  ButtonWindowState bws =
+    getButtonWindowState(config, elapsedMS, frameDelta, maxFrame);
+  return bws == BWS_ACTIVE;
+}
+
+
+DWORD GVMainWindow::dodgeInvulnerabilityTimerElapsedMS() const
+{
+  return m_dodgeInvulnerabilityTimer.elapsedMS(
+    m_controllerState.m_pollTimeMS);
+}
+
+
+bool GVMainWindow::isDodgeInvulnerabilityActive() const
+{
+  if (m_dodgeInvulnerabilityTimer.isRunning()) {
+    return isButtonActive(
+      m_config.m_dodgeInvulnerabilityTimer,
+      (int)dodgeInvulnerabilityTimerElapsedMS());
+  }
+  else {
+    return false;
+  }
 }
 
 
@@ -247,7 +366,9 @@ DWORD GVMainWindow::parryTimerElapsedMS() const
 bool GVMainWindow::isParryActive() const
 {
   if (m_parryTimer.isRunning()) {
-    return m_config.m_parryTimer.isActive((int)parryTimerElapsedMS());
+    return isButtonActive(
+      m_config.m_parryTimer,
+      (int)parryTimerElapsedMS());
   }
   else {
     return false;
@@ -255,50 +376,87 @@ bool GVMainWindow::isParryActive() const
 }
 
 
-std::wstring GVMainWindow::parryAccuracyString() const
+std::wstring GVMainWindow::dodgeAccuracyString(bool &active /*OUT*/) const
 {
-  ParryTimerConfig const &ptc = m_config.m_parryTimer;
-  int elapsedMS = (int)parryTimerElapsedMS();
+  int frameDelta;
+  int maxFrame;
+  ButtonWindowState bws = getButtonWindowState(
+    m_config.m_dodgeInvulnerabilityTimer,
+    (int)dodgeInvulnerabilityTimerElapsedMS(),
+    frameDelta,
+    maxFrame);
 
   std::wostringstream oss;
+  active = false;
 
-  if (elapsedMS < ptc.m_activeStartMS) {
-    // The active window has not yet started, meaning the button was
-    // pressed too late.
-    oss << msToFrames(ptc.m_activeStartMS - elapsedMS) << " late";
+  switch (bws) {
+    case BWS_BEFORE:
+      // The active window has not yet started, meaning the button was
+      // pressed, but the game has not yet registered it due to input lag.
+      oss << "L " << frameDelta;
+      break;
+
+    case BWS_AFTER:
+      // The active window has already ended, meaning the button was
+      // pressed too early, and we are in the recovery window.
+      oss << "R " << frameDelta;
+      break;
+
+    case BWS_ACTIVE:
+      // We are within the active invulnerability window.
+      oss << frameDelta << "/" << maxFrame;
+      active = true;
+      break;
+
+    // No default provided, as cases are exhaustive.
   }
 
-  else if (elapsedMS > ptc.m_activeEndMS) {
-    // The active window has already ended, meaning the button was
-    // pressed too early.
-    oss << msToFrames(elapsedMS - ptc.m_activeEndMS) << " early";
-  }
-
-  else {
-    // We are within the active window, so report the frame number on
-    // which the button was pressed, from among those that would have
-    // also led to a successful parry.  Frame 1 is the first in the
-    // window, meaning the button was pressed on the last possible
-    // frame.
-    oss << msToFrames(elapsedMS - ptc.m_activeStartMS) << " of "
-        << msToFrames(ptc.m_activeEndMS - ptc.m_activeStartMS);
+  if (m_dodgeInvulnerabilityTimer.m_queued) {
+    oss << "+";
   }
 
   return oss.str();
 }
 
 
-/*static*/ int GVMainWindow::msToFrames(int ms)
+std::wstring GVMainWindow::parryAccuracyString() const
 {
-  // If we happen to press the button at the moment the active window
-  // starts, call that part of frame 1.  (In practice, this never
-  // happens, due to the granularity of the timer.)
-  if (ms == 0) {
-    ms = 1;
+  int frameDelta;
+  int maxFrame;
+  ButtonWindowState bws = getButtonWindowState(
+    m_config.m_parryTimer,
+    (int)parryTimerElapsedMS(),
+    frameDelta,
+    maxFrame);
+
+  std::wostringstream oss;
+
+  switch (bws) {
+    case BWS_BEFORE:
+      // The active window has not yet started, meaning the button was
+      // pressed too late.
+      oss << frameDelta << " late";
+      break;
+
+    case BWS_AFTER:
+      // The active window has already ended, meaning the button was
+      // pressed too early.
+      oss << frameDelta << " early";
+      break;
+
+    case BWS_ACTIVE:
+      // We are within the active window, so report the frame number on
+      // which the button was pressed, from among those that would have
+      // also led to a successful parry.  Frame 1 is the first in the
+      // window, meaning the button was pressed on the last possible
+      // frame.
+      oss << frameDelta << " of " << maxFrame;
+      break;
+
+    // No default provided, as cases are exhaustive.
   }
 
-  // There are 30 frames in 1000 milliseconds, and we want to round up.
-  return (ms * 30 + 999) / 1000;
+  return oss.str();
 }
 
 
@@ -371,6 +529,8 @@ void GVMainWindow::createLinesBrushes()
   createBrush(m_parryActiveBrush,    m_config.m_parryActiveColorref);
   createBrush(m_parryInactiveBrush,  m_config.m_parryInactiveColorref);
   createBrush(m_textBackgroundBrush, m_config.m_textBackgroundColorref);
+  createBrush(m_dodgeActiveBrush,    m_config.m_dodgeActiveColorref);
+  createBrush(m_dodgeInactiveBrush,  m_config.m_dodgeInactiveColorref);
 }
 
 
@@ -382,6 +542,8 @@ void GVMainWindow::destroyLinesBrushes()
   safeRelease(m_parryActiveBrush);
   safeRelease(m_parryInactiveBrush);
   safeRelease(m_textBackgroundBrush);
+  safeRelease(m_dodgeActiveBrush);
+  safeRelease(m_dodgeInactiveBrush);
 }
 
 
@@ -396,6 +558,8 @@ ID2D1SolidColorBrush *GVMainWindow::brushForColorRole(
     case GVCR_PARRY_ACTIVE:            return m_parryActiveBrush;
     case GVCR_PARRY_INACTIVE:          return m_parryInactiveBrush;
     case GVCR_TEXT_BACKGROUND:         return m_textBackgroundBrush;
+    case GVCR_DODGE_ACTIVE:            return m_dodgeActiveBrush;
+    case GVCR_DODGE_INACTIVE:          return m_dodgeInactiveBrush;
   }
 }
 
@@ -514,6 +678,18 @@ static D2D1_MATRIX_3X2_F focusPtR(
 }
 
 
+// Given a point (x,y) meant to be relative to `transform`, transform it
+// into screen pixel coordinates.
+static D2D1_POINT_2F transformPoint(
+  D2D1_MATRIX_3X2_F const &transform,
+  float x, float y)
+{
+  return
+    D2D1::Matrix3x2F::ReinterpretBaseType(&transform)->
+      TransformPoint(D2D1_POINT_2F{x, y});
+}
+
+
 void GVMainWindow::drawControllerState()
 {
   D2D1_SIZE_F renderTargetSize = m_renderTarget->GetSize();
@@ -587,48 +763,35 @@ void GVMainWindow::drawControllerState()
     // draw.  We start at the bottom-left corner of the parry timer
     // region.  (We have to compute this manually because drawing text
     // really only works with an identity transform active.)
-    D2D1_POINT_2F textCursor =
-      D2D1::Matrix3x2F::ReinterpretBaseType(&parryTimerRegion)->
-        TransformPoint(D2D1_POINT_2F{lp().m_parryElapsedTimeX,
-                                     lp().m_parryElapsedTimeY});
+    D2D1_POINT_2F textCursor = transformPoint(
+      parryTimerRegion,
+      lp().m_parryElapsedTimeX,
+      lp().m_parryElapsedTimeY);
 
     // With `TimeY` at 1.0, the meter and text overlap slightly, so push
     // the text down slightly.
     textCursor.y += 2;
 
-    // Drawing text requires the identity transform.
-    m_renderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
-
     if (m_config.m_parryTimer.m_showAccuracy) {
-      // Compute a nominal rectangle to enclose the text.  This is
-      // larger than what will actually be used.
-      D2D1_RECT_F textRect =
-        D2D1::RectF(textCursor.x,         textCursor.y,
-                    textCursor.x + 100.0, textCursor.y + 20.0);
-
       // Paint a background beneath the text to ensure it can be
       // reliably read.  (Prior to adding the background, I've had cases
       // where I could not read it in a game play recording due to the
       // combination of low-contrast background and video compression
       // effects.)
       drawTextWithBackground(parryAccuracyString(),
-                             textRect, GVCR_TEXT_BACKGROUND);
+                             textCursor, GVCR_TEXT_BACKGROUND);
 
       // Move the cursor down before drawing the next line.
       textCursor.y += 22;
     }
 
     if (m_config.m_parryTimer.m_showElapsedTime) {
-      D2D1_RECT_F textRect =
-        D2D1::RectF(textCursor.x,         textCursor.y,
-                    textCursor.x + 100.0, textCursor.y + 20.0);
-
       // Elapsed time as a string.
       std::wostringstream oss;
       oss << parryTimerElapsedMS();
       std::wstring s = oss.str();
 
-      drawTextWithBackground(s, textRect, GVCR_TEXT_BACKGROUND);
+      drawTextWithBackground(s, textCursor, GVCR_TEXT_BACKGROUND);
     }
   }
 
@@ -656,6 +819,20 @@ void GVMainWindow::drawControllerState()
   // of thin lines that are hard to click.
   drawCentralCircle(
     focusPtR(0.5, lp().m_centralCircleY, lp().m_centralCircleR) * baseTransform);
+
+  if (m_config.m_showDodgeInvulnerabilityTimer &&
+      m_dodgeInvulnerabilityTimer.isRunning()) {
+    D2D1_POINT_2F textCursor = transformPoint(
+      baseTransform,
+      lp().m_dodgeInvulnerabilityTimeX,
+      lp().m_dodgeInvulnerabilityTimeY);
+
+    bool active;
+    std::wstring s = dodgeAccuracyString(active /*OUT*/);
+
+    drawTextWithBackground(s, textCursor,
+      active? GVCR_DODGE_ACTIVE : GVCR_DODGE_INACTIVE);
+  }
 }
 
 
@@ -773,9 +950,22 @@ void GVMainWindow::drawLine(
 
 void GVMainWindow::drawTextWithBackground(
   std::wstring const &str,
-  D2D1_RECT_F const &textRect,
+  D2D1_POINT_2F const &textCursor,
   GVColorRole bgColorRole)
 {
+  // Drawing text requires the identity transform.
+  m_renderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
+
+  // Compute a rectangle to hold the text.  This is meant to be larger
+  // than the actual text to display.
+  //
+  // TODO: This could be made more general by accepting or computing
+  // the width and height.
+  //
+  D2D1_RECT_F textRect =
+    D2D1::RectF(textCursor.x,         textCursor.y,
+                textCursor.x + 200.0, textCursor.y + 20.0);
+
   // Make a "text layout" object to measure the text that will be drawn.
   IDWriteTextLayout *textLayout = nullptr;
   CALL_HR_WINAPI(m_writeFactory->CreateTextLayout,
@@ -1225,6 +1415,8 @@ void GVMainWindow::createContextMenu()
   appendContextMenu(IDM_LARGER_WINDOW,              L"Make display larger (+)");
   appendContextMenu(IDM_TOGGLE_PARRY_ACCURACY_TEXT, L"Toggle showing parry accuracy text");
   appendContextMenu(IDM_TOGGLE_PARRY_TIME_TEXT,     L"Toggle showing parry elapsed time text");
+  appendContextMenu(IDM_TOGGLE_DODGE_INVULNERABILITY_TIMER,
+    L"Toggle showing dodge invulnerability timer");
 
   CALL_HANDLE_WINAPI(m_controllerIDMenu, CreatePopupMenu);
 
@@ -1334,6 +1526,10 @@ bool GVMainWindow::onCommand(WPARAM wParam, LPARAM lParam)
 
     case IDM_TOGGLE_PARRY_TIME_TEXT:
       toggleShowParryTimeText();
+      return true;
+
+    case IDM_TOGGLE_DODGE_INVULNERABILITY_TIMER:
+      toggleShowDodgeInvulnerabilityTimer();
       return true;
 
     case IDM_CONTROLLER_0:
@@ -1455,6 +1651,13 @@ void GVMainWindow::toggleShowParryAccuracyText()
 void GVMainWindow::toggleShowParryTimeText()
 {
   toggleBool(m_config.m_parryTimer.m_showElapsedTime);
+  invalidateAllPixels();
+}
+
+
+void GVMainWindow::toggleShowDodgeInvulnerabilityTimer()
+{
+  toggleBool(m_config.m_showDodgeInvulnerabilityTimer);
   invalidateAllPixels();
 }
 
