@@ -186,7 +186,12 @@ DodgeInvulnerabilityTimerConfig::DodgeInvulnerabilityTimerConfig()
 
   // Startup time, which is due to game input lag.  1-2 frames, I think
   // 2 is more common, but that needs experimental validation.
-  m_activeStartMS = 1000 * startupFrames / 30;
+  //
+  // In this division, round up so that a time that falls right on the
+  // boundary of active and inactive will be classified as the last
+  // active frame rather than last+1.
+  //
+  m_activeStartMS = (1000 * startupFrames + 29) / 30;
 
   // Time from start to the end of the active window: startup + active.
   m_activeEndMS = 1000 * (startupFrames + activeFrames) / 30;
