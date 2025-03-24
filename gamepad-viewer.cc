@@ -404,7 +404,13 @@ std::wstring GVMainWindow::dodgeAccuracyString(bool &active /*OUT*/) const
 
     case BWS_ACTIVE:
       // We are within the active invulnerability window.
-      oss << frameDelta << "/" << maxFrame;
+      if (false) {
+        // This takes up a bit more space than I'd like.
+        oss << frameDelta << "/" << maxFrame;
+      }
+      else {
+        oss << "I " << frameDelta;
+      }
       active = true;
       break;
 
