@@ -717,6 +717,7 @@ void GVMainWindow::drawControllerState()
     oss << L"thumbRX: " << g.sThumbRX << L"\n";
     oss << L"thumbRY: " << g.sThumbRY << L"\n";
     oss << L"parryElapsedMS: " << parryTimerElapsedMS() << L"\n";
+    oss << L"dodgeElapsedMS: " << dodgeInvulnerabilityTimerElapsedMS() << L"\n";
 
     std::wstring s = oss.str();
     m_renderTarget->DrawText(
