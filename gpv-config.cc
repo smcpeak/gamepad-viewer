@@ -169,15 +169,27 @@ json::JSON ButtonTimerConfig::saveToJSON() const
 DodgeInvulnerabilityTimerConfig::DodgeInvulnerabilityTimerConfig()
   : ButtonTimerConfig()
 {
-  // Total duration: startup + invuln + recovery.  22 frames.
-  m_durationMS = 1000 * 22 / 30;
+  // Startup time, which is due to game input lag.  1-2 frames, I think
+  // 2 is more common, but that needs experimental validation.
+  int const startupFrames = 2;
 
-  // Startup time, which is due to game input lag.  1 frame (typically).
-  m_activeStartMS = 1000 * 1 / 30;
+  // 13 i-frames on light and medium roll.
+  int const activeFrames = 13;
 
-  // Time from start to the end of the active window: startup + invuln.
-  // 14 frames.
-  m_activeEndMS = 1000 * 14 / 30;
+  // 8 recovery frames on light and medium if the next action is also a
+  // roll.
+  int const recoveryFrames = 8;
+
+  // Total duration: startup + active + recovery.
+  int const totalFrames = startupFrames + activeFrames + recoveryFrames;
+  m_durationMS = 1000 * totalFrames / 30;
+
+  // Startup time, which is due to game input lag.  1-2 frames, I think
+  // 2 is more common, but that needs experimental validation.
+  m_activeStartMS = 1000 * startupFrames / 30;
+
+  // Time from start to the end of the active window: startup + active.
+  m_activeEndMS = 1000 * (startupFrames + activeFrames) / 30;
 }
 
 
@@ -332,7 +344,7 @@ GPVConfig::GPVConfig()
     m_parryActiveColorref(RGB(255, 0, 0)),
     m_parryInactiveColorref(RGB(128, 128, 128)),
     m_textBackgroundColorref(RGB(32, 32, 32)),   // Dark gray.
-    m_dodgeActiveColorref(RGB(255, 0, 0)),
+    m_dodgeActiveColorref(RGB(128, 32, 32)),
     m_dodgeInactiveColorref(RGB(32, 32, 32)),
     m_showText(false),
     m_showDodgeInvulnerabilityTimer(false),
