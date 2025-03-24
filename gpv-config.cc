@@ -169,9 +169,9 @@ json::JSON ButtonTimerConfig::saveToJSON() const
 DodgeInvulnerabilityTimerConfig::DodgeInvulnerabilityTimerConfig()
   : ButtonTimerConfig()
 {
-  // Startup time, which is due to game input lag.  1-2 frames, I think
-  // 2 is more common, but that needs experimental validation.
-  int const startupFrames = 2;
+  // Startup time, which is due to game input lag.  Typical is a bit
+  // more than 1 frame.  We start by saying 1, then adjust.
+  int const startupFrames = 1;
 
   // 13 i-frames on light and medium roll.
   int const activeFrames = 13;
@@ -180,21 +180,31 @@ DodgeInvulnerabilityTimerConfig::DodgeInvulnerabilityTimerConfig()
   // roll.
   int const recoveryFrames = 8;
 
+  // Milliseconds to add to all the thresholds, effectively increasing
+  // the startup delay by this amount.
+  //
+  // This value (10 ms) was calibrated experimentally by going to the
+  // first Leyndell bonfire (where Boc is), clearing the horn blowers
+  // until the gargoyle statue, then repeatedly rolling into its fire
+  // attack such that the i-frames end while inside the fire.  A perfect
+  // measurement system would always yield frame "R 1" (first recovery
+  // frame) as the first damage frame.  With this value, the system
+  // comes close to that, with one frame of error in either direction
+  // about 40% of the time, about evenly balanced on each side.
+  //
+  int const adjustMS = 10;
+
   // Total duration: startup + active + recovery.
   int const totalFrames = startupFrames + activeFrames + recoveryFrames;
-  m_durationMS = 1000 * totalFrames / 30;
+  m_durationMS = 1000 * totalFrames / 30 + adjustMS;
 
-  // Startup time, which is due to game input lag.  1-2 frames, I think
-  // 2 is more common, but that needs experimental validation.
-  //
   // In this division, round up so that a time that falls right on the
   // boundary of active and inactive will be classified as the last
   // active frame rather than last+1.
-  //
-  m_activeStartMS = (1000 * startupFrames + 29) / 30;
+  m_activeStartMS = (1000 * startupFrames + 29) / 30 + adjustMS;
 
   // Time from start to the end of the active window: startup + active.
-  m_activeEndMS = 1000 * (startupFrames + activeFrames) / 30;
+  m_activeEndMS = 1000 * (startupFrames + activeFrames) / 30 + adjustMS;
 }
 
 
