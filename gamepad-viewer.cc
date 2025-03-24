@@ -409,7 +409,7 @@ std::wstring GVMainWindow::dodgeAccuracyString(bool &active /*OUT*/) const
         oss << frameDelta << "/" << maxFrame;
       }
       else {
-        oss << "I " << frameDelta;
+        oss << "A " << frameDelta;
       }
       active = true;
       break;
